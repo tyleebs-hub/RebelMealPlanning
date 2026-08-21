@@ -6,15 +6,42 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const RECIPE_COLS =
   "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min";
 
-// Get or create the week row for a Monday start date. Idempotent.
+// Get or create the week row for a Monday start date. Idempotent. On first
+// creation, seed the default Friday dinner: Pizza / Movie Night (still fully
+// overridable, and it won't come back once changed).
 export async function weekIdForStart(sb: SupabaseClient, start: string): Promise<string> {
-  const { data, error } = await sb
+  const { data: existing } = await sb
     .from("weeks")
-    .upsert({ start_date: start }, { onConflict: "start_date" })
+    .select("id")
+    .eq("start_date", start)
+    .maybeSingle();
+  if (existing) return existing.id as string;
+
+  const { data: created, error } = await sb
+    .from("weeks")
+    .insert({ start_date: start })
     .select("id")
     .single();
-  if (error || !data) throw error ?? new Error("could not get week");
-  return data.id as string;
+  if (error || !created) {
+    // Lost a create race — the row now exists; re-read it.
+    const { data: retry } = await sb.from("weeks").select("id").eq("start_date", start).single();
+    if (retry) return retry.id as string;
+    throw error ?? new Error("could not get week");
+  }
+  const weekId = created.id as string;
+  await sb.from("slots").upsert(
+    {
+      week_id: weekId,
+      day: "fri",
+      meal: "dinner",
+      fill_type: "out",
+      out_label: "Pizza / Movie Night",
+      cook_event_id: null,
+      sauce: null,
+    },
+    { onConflict: "week_id,day,meal" },
+  );
+  return weekId;
 }
 
 export type WeekData = {
