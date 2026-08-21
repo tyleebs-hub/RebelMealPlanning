@@ -62,6 +62,28 @@ export async function addCookEvent(formData: FormData) {
   revalidate(start);
 }
 
+// Slot-first: tapping a slot and choosing a recipe creates the cook on that day
+// at 1x and fills the slot. Dinner cooks reserve DINNER_SERVINGS; lunch cooks
+// are prep-kind (reserve nothing). The multiplier stepper then lives on the slot.
+export async function pickCook(start: string, day: Day, meal: Meal, recipeId: string) {
+  await requireAdmin();
+  if (!recipeId) return;
+  const kind = meal === "dinner" ? "dinner" : "prep";
+  const sb = getSupabaseAdmin();
+  const weekId = await weekIdForStart(sb, start);
+  const { data: ce, error } = await sb
+    .from("cook_events")
+    .insert({ week_id: weekId, recipe_id: recipeId, multiplier: 1, day, kind })
+    .select("id")
+    .single();
+  if (error || !ce) throw error ?? new Error("insert cook_event failed");
+  await sb.from("slots").upsert(
+    { week_id: weekId, day, meal, fill_type: "cook", cook_event_id: ce.id, out_label: null, sauce: null },
+    { onConflict: "week_id,day,meal" },
+  );
+  revalidate(start);
+}
+
 export async function setMultiplier(start: string, cookEventId: string, multiplier: number) {
   await requireAdmin();
   const sb = getSupabaseAdmin();
