@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { COOKIE_NAME, isAuthConfigured, verifySession, roleAllows } from "@/lib/auth";
+import {
+  COOKIE_NAME,
+  SESSION_TTL_MS,
+  isAuthConfigured,
+  verifySession,
+  roleAllows,
+} from "@/lib/auth";
 
 // Routes reachable without a session.
 const PUBLIC_PATHS = ["/login", "/logout"];
@@ -13,6 +19,27 @@ export async function middleware(req: NextRequest) {
   if (!isAuthConfigured()) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
+
+  // Vote link: /vote/<token> sets the household cookie and lands on the voting
+  // view. Charity arrives here with no cookie (see CLAUDE.md > Auth).
+  const voteToken = pathname.match(/^\/vote\/(.+)$/);
+  if (voteToken) {
+    const token = decodeURIComponent(voteToken[1]);
+    const role = await verifySession(token);
+    if (role) {
+      const res = NextResponse.redirect(new URL("/vote", req.url));
+      res.cookies.set(COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: Math.floor(SESSION_TTL_MS / 1000),
+      });
+      return res;
+    }
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }

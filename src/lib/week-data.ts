@@ -41,3 +41,27 @@ export async function loadWeek(start: string): Promise<WeekData> {
     slots: (slots ?? []) as Slot[],
   };
 }
+
+export type Vote = "yes" | "sure" | "pass";
+export type Who = "tyler" | "charity";
+export type SuggestionWithVotes = {
+  id: string;
+  recipe_id: string;
+  note: string | null;
+  sort_order: number | null;
+  recipe: { title: string };
+  votes: { who: Who; vote: Vote }[];
+};
+
+export async function loadSuggestions(
+  start: string,
+): Promise<{ weekId: string; suggestions: SuggestionWithVotes[] }> {
+  const sb = getSupabaseAdmin();
+  const weekId = await weekIdForStart(sb, start);
+  const { data } = await sb
+    .from("suggestions")
+    .select("id,recipe_id,note,sort_order,recipe:recipes(title),votes(who,vote)")
+    .eq("week_id", weekId)
+    .order("sort_order");
+  return { weekId, suggestions: (data ?? []) as unknown as SuggestionWithVotes[] };
+}

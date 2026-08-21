@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { loadWeek } from "@/lib/week-data";
+import { loadWeek, loadSuggestions, type Vote } from "@/lib/week-data";
 import {
   DAYS,
   type Day,
@@ -24,12 +24,16 @@ import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { MultiplierStepper } from "@/components/week/MultiplierStepper";
 import { AddCookForm } from "@/components/week/AddCookForm";
 import {
+  addSuggestion,
   assignLeftover,
   autoFillLunches,
   clearSlot,
   deleteCookEvent,
+  removeSuggestion,
   setOut,
 } from "./actions";
+import { VoteButtons } from "@/components/week/VoteButtons";
+import { PingCharity } from "@/components/week/PingCharity";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +46,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   }
 
   const { cookEvents, slots } = await loadWeek(start);
+  const { suggestions } = await loadSuggestions(start);
 
   const sb = getSupabaseAdmin();
   const { data: recipeData } = await sb
@@ -191,6 +196,75 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Suggestions + voting */}
+      <section className="mt-8">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Suggestions</h2>
+          <PingCharity />
+        </div>
+
+        {suggestions.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-2">
+            {suggestions.map((s) => {
+              const tyler = (s.votes.find((v) => v.who === "tyler")?.vote ?? null) as Vote | null;
+              const charity = s.votes.find((v) => v.who === "charity")?.vote ?? null;
+              return (
+                <li
+                  key={s.id}
+                  className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium leading-tight">{s.recipe.title}</p>
+                      {s.note && <p className="mt-0.5 text-xs text-neutral-500">{s.note}</p>}
+                    </div>
+                    <form action={removeSuggestion.bind(null, start, s.id)}>
+                      <button className="text-xs text-neutral-400 hover:text-red-600">Remove</button>
+                    </form>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <VoteButtons suggestionId={s.id} current={tyler} />
+                    <span className="text-xs text-neutral-400">
+                      Charity: {charity ?? "—"}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <form
+          action={addSuggestion}
+          className="mt-3 flex flex-col gap-2 rounded-xl border border-dashed border-neutral-300 p-3 dark:border-neutral-700"
+        >
+          <input type="hidden" name="start" value={start} />
+          <select
+            name="recipeId"
+            required
+            defaultValue=""
+            className="rounded-lg border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+          >
+            <option value="" disabled>
+              Suggest a recipe…
+            </option>
+            {recipes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.title}
+              </option>
+            ))}
+          </select>
+          <input
+            name="note"
+            placeholder="Note (optional) — e.g. have frozen chicken to use up"
+            className="rounded-lg border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+          />
+          <button className="self-start rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200">
+            Add suggestion
+          </button>
+        </form>
       </section>
     </main>
   );

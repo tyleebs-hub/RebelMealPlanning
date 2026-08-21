@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
-import { requireAdmin } from "@/lib/session";
+import { currentRole, requireAdmin } from "@/lib/session";
+import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
 import { DAYS, type Day, type Meal } from "@/lib/week";
 
@@ -212,4 +214,62 @@ export async function autoFillLunches(start: string) {
     await sb.from("slots").upsert(newSlots, { onConflict: "week_id,day,meal" });
   }
   revalidate(start);
+}
+
+// ---- suggestions & voting ---------------------------------------------------
+
+export async function addSuggestion(formData: FormData) {
+  await requireAdmin();
+  const start = String(formData.get("start"));
+  const recipeId = String(formData.get("recipeId"));
+  const note = String(formData.get("note") || "").trim() || null;
+  if (!recipeId) return;
+
+  const sb = getSupabaseAdmin();
+  const weekId = await weekIdForStart(sb, start);
+  const { count } = await sb
+    .from("suggestions")
+    .select("id", { count: "exact", head: true })
+    .eq("week_id", weekId);
+  await sb.from("suggestions").insert({
+    week_id: weekId,
+    recipe_id: recipeId,
+    note,
+    sort_order: (count ?? 0) + 1,
+  });
+  revalidate(start);
+  revalidatePath("/vote");
+}
+
+export async function removeSuggestion(start: string, suggestionId: string) {
+  await requireAdmin();
+  const sb = getSupabaseAdmin();
+  await sb.from("suggestions").delete().eq("id", suggestionId);
+  revalidate(start);
+  revalidatePath("/vote");
+}
+
+// Cast the current user's vote. "who" is derived from role, never trusted from
+// the client: admin = tyler, household = charity.
+export async function castVote(suggestionId: string, vote: "yes" | "sure" | "pass") {
+  const role = await currentRole();
+  if (!role) throw new Error("not signed in");
+  const who = role === "admin" ? "tyler" : "charity";
+  const sb = getSupabaseAdmin();
+  await sb
+    .from("votes")
+    .upsert({ suggestion_id: suggestionId, who, vote }, { onConflict: "suggestion_id,who" });
+  revalidatePath("/vote");
+}
+
+// Generate the shareable vote link + message for Charity. Admin only.
+export async function pingCharity(): Promise<{ url: string; message: string }> {
+  await requireAdmin();
+  const token = await signSession("household");
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const url = `${proto}://${host}/vote/${token}`;
+  const message = `Hey! Can you vote on this week's dinner ideas? Tap here (no login needed): ${url}`;
+  return { url, message };
 }
