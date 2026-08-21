@@ -11,6 +11,7 @@ import {
   mondayOfToday,
 } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
+import { logout } from "@/app/logout/action";
 
 export const dynamic = "force-dynamic";
 
@@ -62,9 +63,11 @@ export default async function VotePage({
         >
           {isAdmin ? "Planner" : "Admin view"}
         </Link>
-        <Link href="/logout" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
-          Sign out
-        </Link>
+        <form action={logout}>
+          <button className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
+            Sign out
+          </button>
+        </form>
       </div>
 
       {/* week nav */}

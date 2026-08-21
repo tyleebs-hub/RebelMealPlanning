@@ -35,6 +35,7 @@ import {
 } from "./actions";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { PingCharity } from "@/components/week/PingCharity";
+import { logout } from "@/app/logout/action";
 
 export const dynamic = "force-dynamic";
 
@@ -86,9 +87,9 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
       <div className="flex items-center justify-between">
-        <Link href="/logout" className={linkCls}>
-          Sign out
-        </Link>
+        <form action={logout}>
+          <button className={linkCls}>Sign out</button>
+        </form>
         <div className="flex gap-4">
           <Link href={`/week/${start}/grocery`} className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--go)]">
             Groceries
