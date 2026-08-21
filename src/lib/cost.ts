@@ -33,6 +33,23 @@ export function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+// Flat cost for "out" slots (no recipe). Freeform label, matched loosely.
+// Costco pizza / movie night $10, Domino's $25, out to dinner $40, leftovers free.
+const OUT_COSTS: { match: RegExp; cost: number }[] = [
+  { match: /costco/, cost: 10 },
+  { match: /domino/, cost: 25 },
+  { match: /movie night|pizza night|\bpizza\b/, cost: 10 },
+  { match: /out to dinner|eat(ing)? out|restaurant|take-?out|dine out/, cost: 40 },
+  { match: /leftover/, cost: 0 },
+];
+
+export function outCost(label: string | null): number {
+  if (!label) return 0;
+  const s = label.toLowerCase();
+  for (const r of OUT_COSTS) if (r.match.test(s)) return r.cost;
+  return 0;
+}
+
 export type WeeklyCost = {
   total: number; // all cook-event cost this week
   dinner: number; // allocated to dinner slots
@@ -76,6 +93,16 @@ export function weeklyCost(
     dinner += dinnerServings * perServing;
     lunch += lunchServings * perServing;
     unallocated += Math.max(0, produced - consumed) * perServing;
+  }
+
+  // Out slots (Costco pizza, eating out) carry a flat cost, not a recipe cost.
+  for (const s of slots) {
+    if (s.fill_type !== "out") continue;
+    const c = outCost(s.out_label);
+    if (c <= 0) continue;
+    total += c;
+    if (s.meal === "dinner") dinner += c;
+    else lunch += c;
   }
 
   return { total, dinner, lunch, unallocated, unpricedCooks };
