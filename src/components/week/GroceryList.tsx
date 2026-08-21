@@ -99,9 +99,9 @@ export function GroceryList({
 
       {/* Aisles — flow into columns on wider screens so more fits without scrolling.
           Long aisles may span a column break; headers and individual items stay intact. */}
-      <div className="mt-3 gap-x-10 sm:columns-2 lg:columns-3">
+      <div className="mt-4 gap-x-10 [&>div]:pt-1 sm:columns-2 lg:columns-3">
         {built.groups.map((g) => (
-          <div key={g.aisle} className="mb-4">
+          <div key={g.aisle} className="mb-4 break-inside-avoid-column">
             <h3 className="break-after-avoid text-xs font-semibold uppercase tracking-wide text-neutral-400">{g.aisle}</h3>
             <ul className="mt-1.5 flex flex-col">
               {g.lines.map((l) => (

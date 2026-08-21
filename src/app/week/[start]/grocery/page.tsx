@@ -52,16 +52,20 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
     <>
       <AppHeader active="grocery" />
       <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">
-        <Link href={`/week/${start}`} className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
-          ← Week
+        <Link href={`/week/${start}`} className="inline-flex items-center gap-1 text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
+          ← Back to the week plan
         </Link>
-        <header className="mt-2 flex items-center justify-between">
-          <Link href={`/week/${addDaysIso(start, -7)}/grocery`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">←</Link>
-          <div className="text-center">
-            <h1 className="font-display text-xl tracking-tight sm:text-2xl">Groceries</h1>
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">{formatWeekRange(start)}</p>
+        <header className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-xl tracking-tight sm:text-2xl">Groceries</h1>
+          <div className="flex items-center gap-1.5 rounded-lg border border-[var(--rule)] bg-[var(--card)] p-1">
+            <Link href={`/week/${addDaysIso(start, -7)}/grocery`} className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">
+              <span aria-hidden>‹</span><span className="hidden sm:inline">Prev</span>
+            </Link>
+            <span className="px-1 font-mono text-xs text-[var(--ink)]">{formatWeekRange(start)}</span>
+            <Link href={`/week/${addDaysIso(start, 7)}/grocery`} className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">
+              <span className="hidden sm:inline">Next</span><span aria-hidden>›</span>
+            </Link>
           </div>
-          <Link href={`/week/${addDaysIso(start, 7)}/grocery`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">→</Link>
         </header>
 
         {events.length === 0 ? (
