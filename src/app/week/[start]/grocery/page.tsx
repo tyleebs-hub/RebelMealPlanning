@@ -51,7 +51,7 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
   return (
     <>
       <AppHeader active="grocery" />
-      <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">
         <Link href={`/week/${start}`} className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
           ← Week
         </Link>

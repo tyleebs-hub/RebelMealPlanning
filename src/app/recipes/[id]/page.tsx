@@ -9,6 +9,7 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { AppHeader } from "@/components/AppHeader";
+import { QuickAddButton } from "@/components/week/QuickAdd";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -82,7 +83,12 @@ export default async function RecipeDetailPage({
       </div>
 
       <header className="mt-5">
-        <h1 className="font-display text-2xl tracking-tight sm:text-3xl">{r.title}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-display text-2xl tracking-tight sm:text-3xl">{r.title}</h1>
+          <div className="shrink-0">
+            <QuickAddButton recipeId={r.id} recipeTitle={r.title} variant="full" />
+          </div>
+        </div>
         <div className="mt-3 flex flex-col gap-2">
           <MealTypeChips types={r.meal_types} />
           <TimeLine recipe={r} />

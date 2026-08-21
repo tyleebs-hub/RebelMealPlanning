@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { weekIdForStart } from "@/lib/week-data";
+import { weekIdForStart, loadWeek } from "@/lib/week-data";
 import { currentWho, requireAuth } from "@/lib/session";
 import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
@@ -302,6 +302,27 @@ export async function castVote(start: string, recipeId: string, vote: "yes" | "s
   await sb.from("votes").upsert({ suggestion_id: suggestionId, who, vote }, { onConflict: "suggestion_id,who" });
   revalidatePath("/vote");
   revalidatePath(`/week/${start}`);
+}
+
+// Compact slot map for the quick-add mini-calendar (all 14 slots of a week).
+export type SlotBrief = { day: Day; meal: Meal; filled: boolean; label: string | null };
+
+export async function weekSlotBrief(start: string): Promise<SlotBrief[]> {
+  await requireAuth();
+  const { cookEvents, slots } = await loadWeek(start);
+  const eventById = new Map(cookEvents.map((c) => [c.id, c]));
+  const byKey = new Map(slots.map((s) => [`${s.day}|${s.meal}`, s]));
+  const meals: Meal[] = ["dinner", "lunch"];
+  return DAYS.flatMap((day) =>
+    meals.map((meal): SlotBrief => {
+      const s = byKey.get(`${day}|${meal}`);
+      if (!s?.fill_type) return { day, meal, filled: false, label: null };
+      let label: string | null = null;
+      if (s.fill_type === "out") label = s.out_label ?? "Out";
+      else if (s.cook_event_id) label = eventById.get(s.cook_event_id)?.recipe.title ?? null;
+      return { day, meal, filled: true, label };
+    }),
+  );
 }
 
 // Charity (or Tyler) suggests a new recipe from a URL on the vote page: import

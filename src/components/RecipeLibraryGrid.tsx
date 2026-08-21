@@ -8,6 +8,7 @@ import { publicImageUrl } from "@/lib/storage";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { RecipeFilterBar } from "@/components/RecipeFilterBar";
+import { QuickAddButton } from "@/components/week/QuickAdd";
 import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-filter";
 
 export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
@@ -31,7 +32,10 @@ export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
       ) : (
         <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
           {shown.map((r) => (
-            <li key={r.id}>
+            <li key={r.id} className="relative">
+              <div className="absolute right-2 top-2 z-10">
+                <QuickAddButton recipeId={r.id} recipeTitle={r.title} />
+              </div>
               <Link
                 href={`/recipes/${r.id}`}
                 className="block h-full overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--card)] transition-colors hover:border-[var(--ink2)]"

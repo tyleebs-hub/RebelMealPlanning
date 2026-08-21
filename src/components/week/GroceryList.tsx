@@ -70,7 +70,7 @@ export function GroceryList({
       {/* Which cooks to shop for */}
       <div className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
         <p className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Shopping for</p>
-        <div className="mt-2 flex flex-col gap-1.5">
+        <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((e) => (
             <label key={e.id} className="flex items-center gap-2 text-sm">
               <input
@@ -97,14 +97,15 @@ export function GroceryList({
         </button>
       </div>
 
-      {/* Aisles */}
-      <div className="mt-3 flex flex-col gap-5">
+      {/* Aisles — flow into columns on wider screens so more fits without scrolling.
+          Long aisles may span a column break; headers and individual items stay intact. */}
+      <div className="mt-3 gap-x-10 sm:columns-2 lg:columns-3">
         {built.groups.map((g) => (
-          <div key={g.aisle}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{g.aisle}</h3>
+          <div key={g.aisle} className="mb-4">
+            <h3 className="break-after-avoid text-xs font-semibold uppercase tracking-wide text-neutral-400">{g.aisle}</h3>
             <ul className="mt-1.5 flex flex-col">
               {g.lines.map((l) => (
-                <li key={l.key}>
+                <li key={l.key} className="break-inside-avoid">
                   <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm">
                     <input
                       type="checkbox"
