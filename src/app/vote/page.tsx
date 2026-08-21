@@ -63,7 +63,7 @@ export default async function VotePage({
       <div className="flex items-center justify-between">
         <Link
           href={isAdmin ? "/week" : "/login?next=%2Fweek"}
-          className="rounded-lg border border-neutral-300 px-2.5 py-1 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          className="rounded-lg border border-[var(--rule)] px-2.5 py-1 text-sm font-medium hover:bg-[var(--rule2)]"
         >
           {isAdmin ? "Planner" : "Admin view"}
         </Link>
@@ -76,14 +76,14 @@ export default async function VotePage({
 
       {/* week nav */}
       <header className="mt-4 flex items-center justify-between">
-        <Link href={`/vote?w=${prev}`} className="rounded-lg px-2 py-1 text-lg hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Previous week">
+        <Link href={`/vote?w=${prev}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">
           ←
         </Link>
         <div className="text-center">
-          <h1 className="text-lg font-bold tracking-tight sm:text-xl">{formatWeekRange(start)}</h1>
-          <p className="text-xs text-neutral-500">{thisWeek ? "this week" : " "}</p>
+          <h1 className="font-mono text-base font-medium sm:text-lg">{formatWeekRange(start)}</h1>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">{thisWeek ? "this week" : " "}</p>
         </div>
-        <Link href={`/vote?w=${next}`} className="rounded-lg px-2 py-1 text-lg hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Next week">
+        <Link href={`/vote?w=${next}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">
           →
         </Link>
       </header>
@@ -116,11 +116,11 @@ export default async function VotePage({
 
       {/* the plan / record */}
       <section className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">
           {thisWeek ? "The plan" : "What we ate"}
         </h2>
         {!hasPlan ? (
-          <p className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+          <p className="mt-3 rounded-xl border border-[var(--rule)] bg-[var(--card)] p-4 text-sm text-[var(--ink2)]">
             {suggestions.length === 0
               ? "Nothing planned yet for this week."
               : "No meals planned yet — vote above and Tyler will build the week."}
@@ -131,11 +131,11 @@ export default async function VotePage({
               const dinner = slotText(day, "dinner");
               const lunch = slotText(day, "lunch");
               return (
-                <li key={day} className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950">
+                <li key={day} className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm">
                   <span className="font-medium">{dayLabel(day)}</span>
-                  <div className="mt-0.5 flex flex-col gap-0.5 text-neutral-600 dark:text-neutral-400">
-                    <span><span className="text-xs uppercase text-neutral-400">Dinner</span> {dinner ?? "—"}</span>
-                    <span><span className="text-xs uppercase text-neutral-400">Lunch</span> {lunch ?? "—"}</span>
+                  <div className="mt-0.5 flex flex-col gap-0.5 text-[var(--ink2)]">
+                    <span><span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">Dinner</span> {dinner ?? "—"}</span>
+                    <span><span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">Lunch</span> {lunch ?? "—"}</span>
                   </div>
                 </li>
               );
