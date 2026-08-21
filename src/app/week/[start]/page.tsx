@@ -77,9 +77,14 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
           ← Home
         </Link>
-        <Link href="/recipes" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
-          Recipe library
-        </Link>
+        <div className="flex gap-4">
+          <Link href={`/week/${start}/grocery`} className="text-sm font-medium text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100">
+            Groceries
+          </Link>
+          <Link href="/recipes" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
+            Recipe library
+          </Link>
+        </div>
       </div>
 
       <header className="mt-3 flex items-center justify-between">
