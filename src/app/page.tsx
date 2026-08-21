@@ -30,15 +30,26 @@ export default async function Home() {
 
       <nav className="mt-8 flex flex-col gap-3">
         {isAdmin ? (
-          <Link
-            href="/recipes"
-            className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
-          >
-            <span className="text-lg font-semibold">Recipe Library</span>
-            <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">
-              Browse and manage the household cookbook.
-            </p>
-          </Link>
+          <>
+            <Link
+              href="/week"
+              className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+            >
+              <span className="text-lg font-semibold">This Week</span>
+              <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+                Plan cooks, fill slots, and watch coverage.
+              </p>
+            </Link>
+            <Link
+              href="/recipes"
+              className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+            >
+              <span className="text-lg font-semibold">Recipe Library</span>
+              <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+                Browse and manage the household cookbook.
+              </p>
+            </Link>
+          </>
         ) : (
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
             You&apos;re signed in. The week view and voting are coming soon.
