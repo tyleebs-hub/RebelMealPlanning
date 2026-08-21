@@ -27,7 +27,15 @@ export const dynamic = "force-dynamic";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
-type PickRecipe = { id: string; title: string; meal_types: MealType[]; is_component: boolean };
+type PickRecipe = {
+  id: string;
+  title: string;
+  meal_types: MealType[];
+  is_component: boolean;
+  active_min: number | null;
+  kids_like: boolean;
+  reheats_well: boolean;
+};
 
 export default async function WeekPage({ params }: { params: Promise<{ start: string }> }) {
   const { start } = await params;
@@ -41,7 +49,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   const sb = getSupabaseAdmin();
   const { data: recipeData } = await sb
     .from("recipes")
-    .select("id,title,meal_types,is_component")
+    .select("id,title,meal_types,is_component,active_min,kids_like,reheats_well")
     .order("title");
   const recipes = (recipeData ?? []) as PickRecipe[];
 
@@ -101,8 +109,11 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   const pickerRecipes = recipes.map((r) => ({
     id: r.id,
     title: r.title,
-    mealTypes: r.meal_types,
+    meal_types: r.meal_types,
     isComponent: r.is_component,
+    active_min: r.active_min,
+    kids_like: r.kids_like,
+    reheats_well: r.reheats_well,
   }));
 
   // The recipes Tyler has drafted this week — what Charity votes on.

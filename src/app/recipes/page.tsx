@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Recipe } from "@/lib/types";
-import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
-import { publicImageUrl } from "@/lib/storage";
-import { DishArt } from "@/components/DishArt";
-import { hueForRecipe } from "@/lib/hues";
+import { RecipeLibraryGrid } from "@/components/RecipeLibraryGrid";
 import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
@@ -77,30 +74,9 @@ export default async function RecipesPage() {
         </div>
       )}
 
-      <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
-        {recipes.map((r) => (
-          <li key={r.id}>
-            <Link
-              href={`/recipes/${r.id}`}
-              className="block h-full overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--card)] transition-colors hover:border-[var(--ink2)]"
-            >
-              <DishArt imageUrl={publicImageUrl(r.image_path)} title={r.title} hue={hueForRecipe(r.id)} />
-              <div className="p-4">
-              <h2 className="font-display text-lg leading-tight">{r.title}</h2>
-              <div className="mt-2">
-                <MealTypeChips types={r.meal_types} />
-              </div>
-              <div className="mt-2">
-                <TimeLine recipe={r} />
-              </div>
-              <div className="mt-3">
-                <RecipeBadges recipe={r} />
-              </div>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {isSupabaseConfigured && !loadError && recipes.length > 0 && (
+        <RecipeLibraryGrid recipes={recipes} />
+      )}
       </main>
     </>
   );

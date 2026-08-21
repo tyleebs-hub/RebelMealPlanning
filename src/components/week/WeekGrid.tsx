@@ -4,6 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import { MultiplierStepper } from "./MultiplierStepper";
 import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent } from "@/app/week/[start]/actions";
 import type { Hue } from "@/lib/hues";
+import { RecipeFilterBar } from "@/components/RecipeFilterBar";
+import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-filter";
+import type { MealType } from "@/lib/types";
 
 export type SlotView = {
   fill: "cook" | "leftover" | "out" | "empty";
@@ -19,7 +22,15 @@ export type SlotView = {
 };
 export type DayView = { day: string; label: string; dateLabel: string; dinner: SlotView; lunch: SlotView };
 export type PickerCook = { id: string; title: string; day: string; available: number; reheats: boolean; hue: Hue };
-export type PickerRecipe = { id: string; title: string; mealTypes: string[]; isComponent: boolean };
+export type PickerRecipe = {
+  id: string;
+  title: string;
+  meal_types: MealType[];
+  isComponent: boolean;
+  active_min: number | null;
+  kids_like: boolean;
+  reheats_well: boolean;
+};
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 const DINNER_OUT = ["Costco pizza", "Out to dinner", "Leftovers"];
@@ -192,18 +203,16 @@ function PickerSheet({
   sauces: string[];
   onClose: () => void;
 }) {
-  const [q, setQ] = useState("");
+  // Opening +dinner / +lunch pre-selects that meal filter; the cook can widen it.
+  const [filters, setFilters] = useState<RecipeFilters>({ ...EMPTY_FILTERS, meals: [meal] });
   const [sauce, setSauce] = useState("");
   const [, startT] = useTransition();
 
-  const list = useMemo(() => {
-    const base =
-      meal === "dinner"
-        ? recipes.filter((r) => r.mealTypes.length === 0 || r.mealTypes.includes("dinner"))
-        : recipes.filter((r) => r.mealTypes.length === 0 || r.mealTypes.includes("lunch") || r.isComponent);
-    const ql = q.trim().toLowerCase();
-    return (ql ? base.filter((r) => r.title.toLowerCase().includes(ql)) : base).slice(0, 40);
-  }, [meal, recipes, q]);
+  const list = useMemo(
+    () =>
+      recipes.filter((r) => matchesFilters(r, filters, { untaggedAlways: true })).slice(0, 60),
+    [recipes, filters],
+  );
 
   const leftoverPool = cooks.filter((c) => c.available >= 2 && c.reheats);
 
@@ -291,17 +300,14 @@ function PickerSheet({
 
           <div>
             <div className={`${EYEBROW} mb-2`}>Cook a recipe</div>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search recipes"
-              className="mb-2 w-full rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-3 py-2 text-sm"
-            />
+            <div className="mb-3">
+              <RecipeFilterBar filters={filters} onChange={setFilters} resultCount={list.length} />
+            </div>
             <div className="flex flex-col gap-1.5">
               {list.map((r) => (
                 <button key={r.id} onClick={() => doCook(r.id)} className="rounded-lg border border-[var(--rule)] px-3 py-2 text-left text-sm hover:border-[var(--ink2)]">
                   {r.title}
-                  {r.mealTypes.length === 0 && <span className="ml-1 text-xs text-[var(--ink2)]">(needs a label)</span>}
+                  {r.meal_types.length === 0 && <span className="ml-1 text-xs text-[var(--ink2)]">(needs a label)</span>}
                   {r.isComponent && <span className="ml-1 text-xs text-[var(--ink2)]">· component</span>}
                 </button>
               ))}
