@@ -115,3 +115,27 @@ create table if not exists grocery_checks (
   checked  bool not null default false,
   primary key (week_id, item_key)
 );
+
+-- Row Level Security ----------------------------------------------------------
+-- The app has no Supabase Auth (see CLAUDE.md > Auth); it uses the publishable
+-- key, which is visible in the browser. So: RLS on for every table, and the
+-- public key gets READ-ONLY access to the recipe tables it renders directly.
+-- Writes (weeks, cook_events, slots, votes, etc.) go through server-side code
+-- using the secret key, which bypasses RLS. Those policies arrive with their
+-- phases; until then those tables are locked to the public key.
+
+alter table recipes         enable row level security;
+alter table ingredients     enable row level security;
+alter table steps           enable row level security;
+alter table ratings         enable row level security;
+alter table weeks           enable row level security;
+alter table cook_events     enable row level security;
+alter table slots           enable row level security;
+alter table suggestions     enable row level security;
+alter table votes           enable row level security;
+alter table grocery_checks  enable row level security;
+
+-- Phase 1: public read of the library.
+create policy "public read recipes"     on recipes     for select using (true);
+create policy "public read ingredients" on ingredients for select using (true);
+create policy "public read steps"       on steps       for select using (true);
