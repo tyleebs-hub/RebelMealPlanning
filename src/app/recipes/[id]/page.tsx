@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Ingredient, Recipe, Step } from "@/lib/types";
 import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
+import { recipeJsonLd } from "@/lib/jsonld";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,15 @@ export default async function RecipeDetailPage({
   const r = recipe as Recipe;
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
+  const jsonLd = recipeJsonLd(r, ings, stps);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
+      {/* schema.org/Recipe for Safari > Share to Paprika. See CLAUDE.md. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <BackLink />
 
       <header className="mt-4">
