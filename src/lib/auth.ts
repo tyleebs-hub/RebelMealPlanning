@@ -1,11 +1,12 @@
-// Household/admin auth. No Supabase Auth, no accounts. See CLAUDE.md > Auth.
+// Household auth. One shared password to get in; after that, full access to the
+// whole app — there is no admin tier. The cookie carries an identity (tyler or
+// charity) only so votes can be attributed. Charity arrives via a signed
+// /vote/<token> link and never types a password. See CLAUDE.md > Auth.
 //
-// A signed, httpOnly cookie carries a role. HOUSEHOLD_PASSWORD grants
-// "household"; ADMIN_PASSWORD grants "admin" (which implies household).
-// Signing uses Web Crypto (HMAC-SHA256) so the same code runs in both the
-// Edge middleware and Node server actions.
+// Signing uses Web Crypto (HMAC-SHA256) so the same code runs in both the Edge
+// middleware and Node server actions.
 
-export type Role = "household" | "admin";
+export type Who = "tyler" | "charity";
 
 export const COOKIE_NAME = "mp_session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 400; // ~400d (browser cap)
@@ -15,11 +16,17 @@ function env(name: string): string | undefined {
   return v && v.length > 0 ? v : undefined;
 }
 
-// The gate is only active once a signing secret and household password exist.
-// Until then the site is open, matching the pre-auth phases and avoiding a
-// lockout before env vars are set in Vercel.
+// The password may live in either var (both exist in the current deployment).
+function passwords(): string[] {
+  return [env("HOUSEHOLD_PASSWORD"), env("ADMIN_PASSWORD")].filter(
+    (p): p is string => Boolean(p),
+  );
+}
+
+// The gate is only active once a signing secret and a password exist. Until
+// then the site is open, avoiding a lockout before env vars are set.
 export function isAuthConfigured(): boolean {
-  return Boolean(env("AUTH_SECRET") && env("HOUSEHOLD_PASSWORD"));
+  return Boolean(env("AUTH_SECRET") && passwords().length > 0);
 }
 
 // ---- base64url helpers (Edge + Node safe) -----------------------------------
@@ -62,16 +69,16 @@ function timingSafeEqualStr(a: string, b: string): boolean {
 }
 
 // ---- session tokens ---------------------------------------------------------
-type Payload = { role: Role; exp: number };
+type Payload = { who: Who; exp: number };
 
-export async function signSession(role: Role, ttlMs = SESSION_TTL_MS): Promise<string> {
-  const payload: Payload = { role, exp: Date.now() + ttlMs };
+export async function signSession(who: Who, ttlMs = SESSION_TTL_MS): Promise<string> {
+  const payload: Payload = { who, exp: Date.now() + ttlMs };
   const payloadB64 = strToB64url(JSON.stringify(payload));
   const sig = await hmac(payloadB64);
   return `${payloadB64}.${sig}`;
 }
 
-export async function verifySession(token: string | undefined | null): Promise<Role | null> {
+export async function verifySession(token: string | undefined | null): Promise<Who | null> {
   if (!token) return null;
   const dot = token.indexOf(".");
   if (dot < 0) return null;
@@ -87,24 +94,14 @@ export async function verifySession(token: string | undefined | null): Promise<R
   try {
     const payload = JSON.parse(b64urlToStr(payloadB64)) as Payload;
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
-    if (payload.role !== "household" && payload.role !== "admin") return null;
-    return payload.role;
+    if (payload.who !== "tyler" && payload.who !== "charity") return null;
+    return payload.who;
   } catch {
     return null;
   }
 }
 
-// Validate a submitted password against the configured passwords.
-// Returns the role it grants, or null. Admin is checked first.
-export function roleForPassword(password: string): Role | null {
-  const admin = env("ADMIN_PASSWORD");
-  const household = env("HOUSEHOLD_PASSWORD");
-  if (admin && timingSafeEqualStr(password, admin)) return "admin";
-  if (household && timingSafeEqualStr(password, household)) return "household";
-  return null;
-}
-
-export function roleAllows(role: Role | null, required: Role): boolean {
-  if (role === "admin") return true; // admin implies household
-  return role === required;
+// Does the submitted password match the household password?
+export function passwordOk(password: string): boolean {
+  return passwords().some((p) => timingSafeEqualStr(password, p));
 }

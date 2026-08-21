@@ -5,6 +5,7 @@ import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta"
 import { publicImageUrl } from "@/lib/storage";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
+import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,9 @@ export default async function RecipesPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+    <>
+      <AppHeader active="recipes" />
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">The cookbook</div>
@@ -98,6 +101,7 @@ export default async function RecipesPage() {
           </li>
         ))}
       </ul>
-    </main>
+      </main>
+    </>
   );
 }

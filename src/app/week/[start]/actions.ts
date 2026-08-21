@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
-import { currentRole, requireAdmin } from "@/lib/session";
+import { currentWho, requireAuth } from "@/lib/session";
 import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
 import { DAYS, type Day, type Meal } from "@/lib/week";
@@ -20,7 +20,7 @@ function clampMultiplier(n: number): number {
 
 // Add a cook event. A dinner cook also fills that day's dinner slot.
 export async function addCookEvent(formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
   const start = String(formData.get("start"));
   const recipeId = String(formData.get("recipeId"));
   const multiplier = clampMultiplier(Number(formData.get("multiplier") ?? 1));
@@ -66,7 +66,7 @@ export async function addCookEvent(formData: FormData) {
 // at 1x and fills the slot. Dinner cooks reserve DINNER_SERVINGS; lunch cooks
 // are prep-kind (reserve nothing). The multiplier stepper then lives on the slot.
 export async function pickCook(start: string, day: Day, meal: Meal, recipeId: string) {
-  await requireAdmin();
+  await requireAuth();
   if (!recipeId) return;
   const kind = meal === "dinner" ? "dinner" : "prep";
   const sb = getSupabaseAdmin();
@@ -85,14 +85,14 @@ export async function pickCook(start: string, day: Day, meal: Meal, recipeId: st
 }
 
 export async function setMultiplier(start: string, cookEventId: string, multiplier: number) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   await sb.from("cook_events").update({ multiplier: clampMultiplier(multiplier) }).eq("id", cookEventId);
   revalidate(start);
 }
 
 export async function deleteCookEvent(start: string, cookEventId: string) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   // Cascades to slots that pointed at it (see schema on delete cascade).
   await sb.from("cook_events").delete().eq("id", cookEventId);
@@ -101,7 +101,7 @@ export async function deleteCookEvent(start: string, cookEventId: string) {
 
 // Assign a leftover lunch (or dinner) slot to a cook event, with optional sauce.
 export async function assignLeftover(formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
   const start = String(formData.get("start"));
   const day = String(formData.get("day")) as Day;
   const meal = String(formData.get("meal")) as Meal;
@@ -127,7 +127,7 @@ export async function assignLeftover(formData: FormData) {
 }
 
 export async function setOut(formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
   const start = String(formData.get("start"));
   const day = String(formData.get("day")) as Day;
   const meal = String(formData.get("meal")) as Meal;
@@ -151,14 +151,14 @@ export async function setOut(formData: FormData) {
 }
 
 export async function setSauce(start: string, slotId: string, sauce: string) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   await sb.from("slots").update({ sauce: sauce.trim() || null }).eq("id", slotId);
   revalidate(start);
 }
 
 export async function clearSlot(start: string, day: Day, meal: Meal) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   const weekId = await weekIdForStart(sb, start);
   await sb.from("slots").delete().eq("week_id", weekId).eq("day", day).eq("meal", meal);
@@ -168,7 +168,7 @@ export async function clearSlot(start: string, day: Day, meal: Meal) {
 // Auto-fill empty lunch slots from reheatable cook events with spare servings,
 // preferring the event with the most available. See CLAUDE.md.
 export async function autoFillLunches(start: string) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   const weekId = await weekIdForStart(sb, start);
 
@@ -241,7 +241,7 @@ export async function autoFillLunches(start: string) {
 // ---- suggestions & voting ---------------------------------------------------
 
 export async function addSuggestion(formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
   const start = String(formData.get("start"));
   const recipeId = String(formData.get("recipeId"));
   const note = String(formData.get("note") || "").trim() || null;
@@ -264,19 +264,18 @@ export async function addSuggestion(formData: FormData) {
 }
 
 export async function removeSuggestion(start: string, suggestionId: string) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   await sb.from("suggestions").delete().eq("id", suggestionId);
   revalidate(start);
   revalidatePath("/vote");
 }
 
-// Cast the current user's vote. "who" is derived from role, never trusted from
-// the client: admin = tyler, household = charity.
+// Cast the current user's vote. "who" is the cookie identity, never trusted
+// from the client.
 export async function castVote(suggestionId: string, vote: "yes" | "sure" | "pass") {
-  const role = await currentRole();
-  if (!role) throw new Error("not signed in");
-  const who = role === "admin" ? "tyler" : "charity";
+  const who = await currentWho();
+  if (!who) throw new Error("not signed in");
   const sb = getSupabaseAdmin();
   await sb
     .from("votes")
@@ -286,8 +285,8 @@ export async function castVote(suggestionId: string, vote: "yes" | "sure" | "pas
 
 // Generate the shareable vote link + message for Charity. Admin only.
 export async function pingCharity(): Promise<{ url: string; message: string }> {
-  await requireAdmin();
-  const token = await signSession("household");
+  await requireAuth();
+  const token = await signSession("charity");
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = host.startsWith("localhost") ? "http" : "https";

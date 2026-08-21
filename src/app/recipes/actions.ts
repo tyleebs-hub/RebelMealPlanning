@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/session";
+import { requireAuth } from "@/lib/session";
 import { PHOTO_BUCKET } from "@/lib/storage";
 
 // Upload a (client-resized) dish photo. See CLAUDE.md > Photo upload.
 export async function uploadRecipePhoto(recipeId: string, formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) return;
 
@@ -39,7 +39,7 @@ export async function uploadRecipePhoto(recipeId: string, formData: FormData) {
 }
 
 export async function removeRecipePhoto(recipeId: string) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   const { data: existing } = await sb
     .from("recipes")

@@ -5,6 +5,7 @@ import { loadWeek } from "@/lib/week-data";
 import { formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import type { GroceryIngredient } from "@/lib/grocery";
 import { GroceryList } from "@/components/week/GroceryList";
+import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -48,32 +49,33 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
   }));
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
-      <div className="flex items-center justify-between">
-        <Link href={`/week/${start}`} className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
+    <>
+      <AppHeader active="grocery" />
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+        <Link href={`/week/${start}`} className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
           ← Week
         </Link>
-      </div>
-      <h1 className="mt-3 text-lg font-bold tracking-tight sm:text-xl">
-        Groceries · {formatWeekRange(start)}
-      </h1>
+        <h1 className="mt-2 font-display text-xl tracking-tight sm:text-2xl">
+          Groceries <span className="font-mono text-base font-normal text-[var(--ink2)]">· {formatWeekRange(start)}</span>
+        </h1>
 
-      {events.length === 0 ? (
-        <p className="mt-6 text-sm text-neutral-500">
-          No cooks planned for this week yet. Add some on the{" "}
-          <Link href={`/week/${start}`} className="underline">
-            week view
-          </Link>
-          .
-        </p>
-      ) : (
-        <GroceryList
-          start={start}
-          events={events}
-          ingredientsByRecipe={ingredientsByRecipe}
-          initialChecks={initialChecks}
-        />
-      )}
-    </main>
+        {events.length === 0 ? (
+          <p className="mt-6 text-sm text-[var(--ink2)]">
+            No cooks planned for this week yet. Add some on the{" "}
+            <Link href={`/week/${start}`} className="underline">
+              week view
+            </Link>
+            .
+          </p>
+        ) : (
+          <GroceryList
+            start={start}
+            events={events}
+            ingredientsByRecipe={ingredientsByRecipe}
+            initialChecks={initialChecks}
+          />
+        )}
+      </main>
+    </>
   );
 }

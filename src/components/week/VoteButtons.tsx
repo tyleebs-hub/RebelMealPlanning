@@ -5,17 +5,11 @@ import { castVote } from "@/app/week/[start]/actions";
 
 type Vote = "yes" | "sure" | "pass";
 
-const OPTIONS: { value: Vote; label: string }[] = [
-  { value: "yes", label: "Yes!" },
-  { value: "sure", label: "Sure" },
-  { value: "pass", label: "Pass" },
+const OPTIONS: { value: Vote; label: string; color: string }[] = [
+  { value: "yes", label: "Yes!", color: "var(--go)" },
+  { value: "sure", label: "Sure", color: "var(--amber)" },
+  { value: "pass", label: "Pass", color: "var(--clay-bg)" },
 ];
-
-const ACTIVE: Record<Vote, string> = {
-  yes: "bg-emerald-600 text-white border-emerald-600",
-  sure: "bg-amber-500 text-white border-amber-500",
-  pass: "bg-neutral-500 text-white border-neutral-500",
-};
 
 export function VoteButtons({
   suggestionId,
@@ -33,19 +27,25 @@ export function VoteButtons({
   };
 
   return (
-    <div className={`inline-flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700 ${pending ? "opacity-60" : ""}`}>
-      {OPTIONS.map((o, i) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => choose(o.value)}
-          className={`px-3 py-1.5 text-sm font-medium ${i > 0 ? "border-l border-neutral-300 dark:border-neutral-700" : ""} ${
-            vote === o.value ? ACTIVE[o.value] : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className={`grid grid-cols-3 gap-2 ${pending ? "opacity-70" : ""}`}>
+      {OPTIONS.map((o) => {
+        const on = vote === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => choose(o.value)}
+            className="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            style={
+              on
+                ? { background: o.color, borderColor: o.color, color: "var(--paper)" }
+                : { borderColor: "var(--rule)", color: o.color }
+            }
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

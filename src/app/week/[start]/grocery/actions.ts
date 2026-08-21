@@ -2,10 +2,10 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
-import { requireAdmin } from "@/lib/session";
+import { requireAuth } from "@/lib/session";
 
 export async function setGroceryCheck(start: string, itemKey: string, checked: boolean) {
-  await requireAdmin();
+  await requireAuth();
   const sb = getSupabaseAdmin();
   const weekId = await weekIdForStart(sb, start);
   await sb

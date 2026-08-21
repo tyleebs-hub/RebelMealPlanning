@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/session";
+import { requireAuth } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
 import { parseRecipeFromHtml, type ParsedWebRecipe } from "@/lib/recipe-jsonld-parse";
 import type { MealType } from "@/lib/types";
@@ -40,7 +40,7 @@ export type FetchResult =
   | { ok: false; error: string };
 
 export async function fetchRecipeFromUrl(rawUrl: string): Promise<FetchResult> {
-  await requireAdmin();
+  await requireAuth();
   const url = isSafeUrl(rawUrl.trim());
   if (!url) return { ok: false, error: "Enter a valid http(s) recipe URL." };
 
@@ -64,7 +64,7 @@ export async function fetchRecipeFromUrl(rawUrl: string): Promise<FetchResult> {
 }
 
 export async function createRecipe(formData: FormData) {
-  await requireAdmin();
+  await requireAuth();
 
   const title = String(formData.get("title") || "").trim();
   if (!title) return;

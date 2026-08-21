@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createRecipe, fetchRecipeFromUrl } from "./actions";
 import type { MealType } from "@/lib/types";
+import { AppHeader } from "@/components/AppHeader";
 
 const MEAL_TYPES: MealType[] = [
   "breakfast", "lunch", "dinner", "snack", "drink", "dessert", "side",
@@ -64,8 +65,10 @@ export default function NewRecipePage() {
     "rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950";
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
-      <Link href="/recipes" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
+    <>
+      <AppHeader active="recipes" />
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+      <Link href="/recipes" className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
         ← Recipes
       </Link>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">Add a recipe</h1>
@@ -166,6 +169,7 @@ export default function NewRecipePage() {
           Save recipe
         </button>
       </form>
-    </main>
+      </main>
+    </>
   );
 }

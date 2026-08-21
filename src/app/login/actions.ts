@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { COOKIE_NAME, SESSION_TTL_MS, roleForPassword, signSession } from "@/lib/auth";
+import { COOKIE_NAME, SESSION_TTL_MS, passwordOk, signSession } from "@/lib/auth";
 
 export type LoginState = { error?: string };
 
@@ -16,10 +16,11 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const password = String(formData.get("password") ?? "");
   const next = safeNext(String(formData.get("next") ?? "/"));
 
-  const role = roleForPassword(password);
-  if (!role) return { error: "That password didn't work. Try again." };
+  if (!passwordOk(password)) return { error: "That password didn't work. Try again." };
 
-  const token = await signSession(role);
+  // One password, full access. Identity is "tyler" (the household admin);
+  // Charity is identified via her signed vote link instead.
+  const token = await signSession("tyler");
   const jar = await cookies();
   jar.set(COOKIE_NAME, token, {
     httpOnly: true,

@@ -9,9 +9,9 @@ export default async function Home() {
   if (!isAuthConfigured()) redirect("/recipes");
 
   const jar = await cookies();
-  const role = await verifySession(jar.get(COOKIE_NAME)?.value);
-  if (!role) redirect("/login");
+  const who = await verifySession(jar.get(COOKIE_NAME)?.value);
+  if (!who) redirect("/login");
 
-  // Admin lands on the planner; household lands on this week's voting/record.
-  redirect(role === "admin" ? "/week" : "/vote");
+  // Charity lands on voting; everyone else on the planner. Both have full access.
+  redirect(who === "charity" ? "/vote" : "/week");
 }

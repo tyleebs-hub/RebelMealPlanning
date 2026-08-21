@@ -1,13 +1,14 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { COOKIE_NAME, verifySession, type Role } from "@/lib/auth";
+import { COOKIE_NAME, verifySession, type Who } from "@/lib/auth";
 
-export async function currentRole(): Promise<Role | null> {
+export async function currentWho(): Promise<Who | null> {
   const jar = await cookies();
   return verifySession(jar.get(COOKIE_NAME)?.value);
 }
 
-export async function requireAdmin(): Promise<void> {
-  const role = await currentRole();
-  if (role !== "admin") throw new Error("Forbidden: admin required");
+// Any valid session may act — there is no admin tier.
+export async function requireAuth(): Promise<void> {
+  const who = await currentWho();
+  if (!who) throw new Error("Not signed in");
 }

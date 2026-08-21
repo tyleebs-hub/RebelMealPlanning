@@ -23,12 +23,11 @@ import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGri
 import { addCookEvent, autoFillLunches, deleteCookEvent, addSuggestion, removeSuggestion } from "./actions";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { PingCharity } from "@/components/week/PingCharity";
-import { logout } from "@/app/logout/action";
+import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
-const linkCls = "text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]";
 
 type PickRecipe = { id: string; title: string; meal_types: MealType[]; is_component: boolean };
 
@@ -122,22 +121,10 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     .map(([id, n]) => ({ title: eventById.get(id)?.recipe.title ?? "a cook", count: n }));
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
-      <div className="flex items-center justify-between">
-        <form action={logout}>
-          <button className={linkCls}>Sign out</button>
-        </form>
-        <div className="flex gap-4">
-          <Link href={`/week/${start}/grocery`} className="text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--go)]">
-            Groceries
-          </Link>
-          <Link href="/recipes" className={linkCls}>
-            Recipe library
-          </Link>
-        </div>
-      </div>
-
-      <header className="mt-3 flex items-center justify-between">
+    <>
+      <AppHeader active="week" />
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
+      <header className="flex items-center justify-between">
         <Link href={`/week/${prev}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">←</Link>
         <div className="text-center">
           <span className={EYEBROW}>Week of</span>
@@ -264,6 +251,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
           <button className="self-start rounded-lg bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--paper)] hover:opacity-90">Add suggestion</button>
         </form>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

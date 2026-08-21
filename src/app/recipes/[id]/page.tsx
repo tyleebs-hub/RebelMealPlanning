@@ -8,6 +8,7 @@ import { publicImageUrl } from "@/lib/storage";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
+import { AppHeader } from "@/components/AppHeader";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -63,7 +64,9 @@ export default async function RecipeDetailPage({
   const imageUrl = publicImageUrl(r.image_path);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
+    <>
+      <AppHeader active="recipes" />
+      <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
       {/* schema.org/Recipe for Safari > Share to Paprika. See CLAUDE.md. */}
       <script
         type="application/ld+json"
@@ -129,7 +132,8 @@ export default async function RecipeDetailPage({
           </ol>
         )}
       </section>
-    </main>
+      </main>
+    </>
   );
 }
 
