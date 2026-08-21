@@ -123,7 +123,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   return (
     <>
       <AppHeader active="week" />
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-10">
       <header className="flex items-center justify-between">
         <Link href={`/week/${prev}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">←</Link>
         <div className="text-center">

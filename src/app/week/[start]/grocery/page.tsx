@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadWeek } from "@/lib/week-data";
-import { formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
+import { addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import type { GroceryIngredient } from "@/lib/grocery";
 import { GroceryList } from "@/components/week/GroceryList";
 import { AppHeader } from "@/components/AppHeader";
@@ -55,9 +55,14 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
         <Link href={`/week/${start}`} className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]">
           ← Week
         </Link>
-        <h1 className="mt-2 font-display text-xl tracking-tight sm:text-2xl">
-          Groceries <span className="font-mono text-base font-normal text-[var(--ink2)]">· {formatWeekRange(start)}</span>
-        </h1>
+        <header className="mt-2 flex items-center justify-between">
+          <Link href={`/week/${addDaysIso(start, -7)}/grocery`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Previous week">←</Link>
+          <div className="text-center">
+            <h1 className="font-display text-xl tracking-tight sm:text-2xl">Groceries</h1>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">{formatWeekRange(start)}</p>
+          </div>
+          <Link href={`/week/${addDaysIso(start, 7)}/grocery`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">→</Link>
+        </header>
 
         {events.length === 0 ? (
           <p className="mt-6 text-sm text-[var(--ink2)]">

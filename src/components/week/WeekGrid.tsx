@@ -42,7 +42,7 @@ export function WeekGrid({
 
   return (
     <>
-      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:[grid-template-columns:repeat(auto-fit,minmax(140px,1fr))]">
+      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-7">
         {days.map((d) => (
           <div key={d.day} className="rounded-xl border border-[var(--rule)] bg-[var(--card)] p-3">
             <div className="flex items-baseline justify-between">
@@ -91,6 +91,8 @@ function Slot({
   onOpen: () => void;
 }) {
   const label = meal === "dinner" ? "Dinner" : "Lunch";
+  // Fixed heights per meal so dinner rows and lunch rows align across all days.
+  const H = meal === "dinner" ? "h-[132px]" : "h-[104px]";
   const [, startT] = useTransition();
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -107,7 +109,7 @@ function Slot({
     return (
       <button
         onClick={onOpen}
-        className="flex min-h-[68px] flex-col items-center justify-center rounded-lg border border-dashed border-[var(--rule)] text-sm font-medium text-[var(--ink2)] hover:border-[var(--ink2)] hover:text-[var(--ink)]"
+        className={`flex ${H} w-full flex-col items-center justify-center rounded-lg border border-dashed border-[var(--rule)] text-sm font-medium text-[var(--ink2)] hover:border-[var(--ink2)] hover:text-[var(--ink)]`}
       >
         + {label}
       </button>
@@ -116,9 +118,9 @@ function Slot({
 
   if (view.fill === "out") {
     return (
-      <div onClick={onOpen} className="relative min-h-[68px] cursor-pointer rounded-lg border border-dashed border-[var(--rule)] px-3 py-2">
+      <div onClick={onOpen} className={`relative ${H} cursor-pointer overflow-hidden rounded-lg border border-dashed border-[var(--rule)] px-3 py-2`}>
         <div className={EYEBROW}>{label}</div>
-        <div className="text-sm text-[var(--ink2)]">{view.outLabel || "Out"}</div>
+        <div className="mt-1 line-clamp-3 text-sm text-[var(--ink2)]">{view.outLabel || "Out"}</div>
         <ClearBtn onClick={clear} />
       </div>
     );
@@ -128,12 +130,12 @@ function Slot({
     return (
       <div
         onClick={onOpen}
-        className="relative min-h-[68px] cursor-pointer rounded-lg border border-[var(--rule)] px-3 py-2"
+        className={`relative ${H} flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] px-3 py-2`}
         style={{ borderLeftColor: view.hue?.bg, borderLeftWidth: 4, background: view.hue?.soft }}
       >
         <div className={EYEBROW}>{label} · leftover</div>
-        <div className="text-sm font-semibold leading-tight">{view.title}</div>
-        <div className="font-mono text-[11px]" style={{ color: view.short ? "var(--clay-bg)" : view.hue?.text }}>
+        <div className="mt-0.5 line-clamp-2 text-sm font-semibold leading-tight">{view.title}</div>
+        <div className="mt-auto line-clamp-2 font-mono text-[11px]" style={{ color: view.short ? "var(--clay-bg)" : view.hue?.text }}>
           {view.short ? "not enough cooked" : `from ${view.fromDay} · 2 portions${view.sauce ? ` · ${view.sauce}` : ""}`}
         </div>
         <ClearBtn onClick={clear} />
@@ -145,14 +147,14 @@ function Slot({
   return (
     <div
       onClick={onOpen}
-      className="relative min-h-[68px] cursor-pointer rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2"
+      className={`relative ${H} flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2`}
       style={{ borderLeftColor: view.hue?.bg, borderLeftWidth: 4 }}
     >
       <div className={EYEBROW}>{label} · cook</div>
-      <div className="text-sm font-semibold leading-tight">{view.title}</div>
-      <div className="mt-1 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-0.5 line-clamp-2 text-sm font-semibold leading-tight">{view.title}</div>
+      <div className="font-mono text-[11px]" style={{ color: view.hue?.text }}>{view.produced} servings</div>
+      <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
         {view.cookEventId && <MultiplierStepper start={start} cookEventId={view.cookEventId} value={view.multiplier ?? 1} />}
-        <span className="font-mono text-[11px]" style={{ color: view.hue?.text }}>{view.produced} srv</span>
       </div>
       <ClearBtn onClick={clear} />
     </div>

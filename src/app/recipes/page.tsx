@@ -41,7 +41,7 @@ export default async function RecipesPage() {
   return (
     <>
       <AppHeader active="recipes" />
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-12">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">The cookbook</div>
@@ -77,7 +77,7 @@ export default async function RecipesPage() {
         </div>
       )}
 
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
         {recipes.map((r) => (
           <li key={r.id}>
             <Link
