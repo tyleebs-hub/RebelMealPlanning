@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:paprika": "node --env-file=.env.local --import tsx scripts/import-paprika.ts"
+    "import:paprika": "node --env-file=.env.local --import tsx scripts/import-paprika.ts",
+    "setup:storage": "node --env-file=.env.local --import tsx scripts/setup-storage.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

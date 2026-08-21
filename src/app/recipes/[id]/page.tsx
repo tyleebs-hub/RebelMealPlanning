@@ -4,6 +4,8 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Ingredient, Recipe, Step } from "@/lib/types";
 import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
 import { recipeJsonLd } from "@/lib/jsonld";
+import { publicImageUrl } from "@/lib/storage";
+import { PhotoUpload } from "@/components/PhotoUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function RecipeDetailPage({
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
   const jsonLd = recipeJsonLd(r, ings, stps);
+  const imageUrl = publicImageUrl(r.image_path);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
@@ -78,6 +81,18 @@ export default async function RecipeDetailPage({
           {r.source_name ? ` · ${r.source_name}` : ""}
         </p>
       </header>
+
+      <div className="mt-4">
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={r.title}
+            className="mb-3 max-h-96 w-full rounded-xl object-cover"
+          />
+        )}
+        <PhotoUpload recipeId={r.id} hasPhoto={!!imageUrl} />
+      </div>
 
       {r.notes && (
         <p className="mt-5 rounded-lg bg-neutral-50 p-4 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">

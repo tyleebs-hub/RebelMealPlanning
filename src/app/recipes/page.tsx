@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Recipe } from "@/lib/types";
 import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
+import { publicImageUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +70,17 @@ export default async function RecipesPage() {
           <li key={r.id}>
             <Link
               href={`/recipes/${r.id}`}
-              className="block h-full rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+              className="block h-full overflow-hidden rounded-xl border border-neutral-200 bg-white transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
             >
+              {publicImageUrl(r.image_path) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={publicImageUrl(r.image_path)!}
+                  alt={r.title}
+                  className="h-32 w-full object-cover"
+                />
+              )}
+              <div className="p-4">
               <h2 className="text-lg font-semibold leading-tight">{r.title}</h2>
               <div className="mt-2">
                 <MealTypeChips types={r.meal_types} />
@@ -80,6 +90,7 @@ export default async function RecipesPage() {
               </div>
               <div className="mt-3">
                 <RecipeBadges recipe={r} />
+              </div>
               </div>
             </Link>
           </li>
