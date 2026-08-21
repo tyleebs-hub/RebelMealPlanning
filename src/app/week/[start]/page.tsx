@@ -22,7 +22,7 @@ import { loadPrices, loadBudgets } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { CostPanel } from "@/components/week/CostPanel";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
-import { autoFillLunches } from "./actions";
+import { autoFillLunches, removeSuggestion } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -151,7 +151,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   const plannedRecipeIds = new Set(cookEvents.map((ce) => ce.recipe_id));
   const charityPicks = suggestions
     .filter((s) => !plannedRecipeIds.has(s.recipe_id))
-    .map((s) => ({ id: s.recipe_id, title: s.recipe.title, note: s.note }));
+    .map((s) => ({ id: s.recipe_id, suggestionId: s.id, title: s.recipe.title, note: s.note }));
 
   // Sauce-variation nudge: cook events feeding 4+ lunch slots (CLAUDE.md).
   const lunchByEvent = new Map<string, number>();
@@ -201,14 +201,21 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
           <h2 className={EYEBROW}>Charity wants to try</h2>
           <ul className="mt-2 flex flex-col gap-1.5">
             {charityPicks.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+              <li key={p.suggestionId} className="flex items-center justify-between gap-3 text-sm">
                 <span>
                   <span className="font-medium">{p.title}</span>
                   {p.note && <span className="ml-2 text-[var(--ink2)]">{p.note}</span>}
                 </span>
-                <Link href={`/recipes/${p.id}`} className="shrink-0 font-mono text-xs text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
-                  view
-                </Link>
+                <span className="flex shrink-0 items-center gap-3">
+                  <Link href={`/recipes/${p.id}`} className="font-mono text-xs text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
+                    view
+                  </Link>
+                  <form action={removeSuggestion.bind(null, start, p.suggestionId)}>
+                    <button aria-label={`Remove ${p.title}`} className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--clay-bg)]">
+                      ✕
+                    </button>
+                  </form>
+                </span>
               </li>
             ))}
           </ul>

@@ -33,8 +33,8 @@ export type PickerRecipe = {
 };
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
-const DINNER_OUT = ["Costco pizza", "Out to dinner", "Leftovers"];
-const LUNCH_OUT = ["Out", "Sandwiches", "Grab bag"];
+const DINNER_OUT = ["Costco pizza", "Domino's", "Champ's", "Out to dinner", "Leftovers"];
+const LUNCH_OUT = ["Out to lunch", "Sandwiches", "Grab bag"];
 
 export function WeekGrid({
   start,

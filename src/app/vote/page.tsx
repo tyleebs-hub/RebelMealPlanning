@@ -5,6 +5,7 @@ import { loadSuggestions, loadWeek, type Vote, type Who } from "@/lib/week-data"
 import { DAYS, addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { SuggestRecipe } from "@/components/week/SuggestRecipe";
+import { removeSuggestion } from "@/app/week/[start]/actions";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { publicImageUrl } from "@/lib/storage";
@@ -72,7 +73,7 @@ export default async function VotePage({
   const plannedIds = new Set(cookEvents.map((c) => c.recipe_id));
   const sentIdeas = suggestions
     .filter((s) => !plannedIds.has(s.recipe_id))
-    .map((s) => ({ id: s.recipe_id, title: s.recipe.title, note: s.note }));
+    .map((s) => ({ id: s.recipe_id, suggestionId: s.id, title: s.recipe.title, note: s.note }));
 
   return (
     <>
@@ -135,9 +136,16 @@ export default async function VotePage({
                 <h2 className={EYEBROW}>Ideas you&apos;ve sent</h2>
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {sentIdeas.map((s) => (
-                    <li key={s.id} className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm">
-                      <span className="font-medium">{s.title}</span>
-                      {s.note && <span className="ml-2 text-[var(--ink2)]">{s.note}</span>}
+                    <li key={s.suggestionId} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm">
+                      <span>
+                        <span className="font-medium">{s.title}</span>
+                        {s.note && <span className="ml-2 text-[var(--ink2)]">{s.note}</span>}
+                      </span>
+                      <form action={removeSuggestion.bind(null, start, s.suggestionId)}>
+                        <button aria-label={`Remove ${s.title}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--clay-bg)]">
+                          ✕
+                        </button>
+                      </form>
                     </li>
                   ))}
                 </ul>

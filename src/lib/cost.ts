@@ -34,19 +34,21 @@ export function money(n: number): string {
 }
 
 // Flat cost for "out" slots (no recipe). Freeform label, matched loosely.
-// Costco pizza / movie night $10, Domino's $25, out to dinner $40, leftovers free.
-const OUT_COSTS: { match: RegExp; cost: number }[] = [
-  { match: /costco/, cost: 10 },
-  { match: /domino/, cost: 25 },
-  { match: /movie night|pizza night|\bpizza\b/, cost: 10 },
-  { match: /out to dinner|eat(ing)? out|restaurant|take-?out|dine out/, cost: 40 },
-  { match: /leftover/, cost: 0 },
-];
-
-export function outCost(label: string | null): number {
+// Pizza night: Costco $12, Domino's $25, Champ's $50. Out to dinner $40, out to
+// lunch $30. Leftovers / home lunches are free. Sourdough pizza is a real recipe,
+// so it carries its own cook cost, not a flat out cost.
+export function outCost(label: string | null, meal: "dinner" | "lunch" = "dinner"): number {
   if (!label) return 0;
   const s = label.toLowerCase();
-  for (const r of OUT_COSTS) if (r.match.test(s)) return r.cost;
+  if (/leftover|sandwich|grab bag|home/.test(s)) return 0;
+  if (/sourdough/.test(s)) return 0;
+  if (/costco/.test(s)) return 12;
+  if (/domino/.test(s)) return 25;
+  if (/champ/.test(s)) return 50;
+  if (/movie night|pizza night|\bpizza\b/.test(s)) return 12; // default pizza night = Costco
+  if (/out to lunch/.test(s)) return 30;
+  if (/out to dinner|restaurant|take-?out|dine out/.test(s)) return 40;
+  if (/\bout\b|eat(ing)? out/.test(s)) return meal === "lunch" ? 30 : 40;
   return 0;
 }
 
@@ -98,7 +100,7 @@ export function weeklyCost(
   // Out slots (Costco pizza, eating out) carry a flat cost, not a recipe cost.
   for (const s of slots) {
     if (s.fill_type !== "out") continue;
-    const c = outCost(s.out_label);
+    const c = outCost(s.out_label, s.meal);
     if (c <= 0) continue;
     total += c;
     if (s.meal === "dinner") dinner += c;
