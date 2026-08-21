@@ -304,6 +304,16 @@ export async function castVote(start: string, recipeId: string, vote: "yes" | "s
   revalidatePath(`/week/${start}`);
 }
 
+// Set a weekly food budget (dinner or lunch). Stored in app_settings.
+export async function setBudget(start: string, which: "dinner" | "lunch", amount: number) {
+  await requireAuth();
+  const key = which === "dinner" ? "weekly_dinner_budget" : "weekly_lunch_budget";
+  const value = String(Math.max(0, Math.round(amount)));
+  const sb = getSupabaseAdmin();
+  await sb.from("app_settings").upsert({ key, value }, { onConflict: "key" });
+  revalidatePath(`/week/${start}`);
+}
+
 // Compact slot map for the quick-add mini-calendar (all 14 slots of a week).
 export type SlotBrief = { day: Day; meal: Meal; filled: boolean; label: string | null };
 

@@ -10,6 +10,8 @@ import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { AppHeader } from "@/components/AppHeader";
 import { QuickAddButton } from "@/components/week/QuickAdd";
+import { recipeCost, money } from "@/lib/cost";
+import { loadPrices } from "@/lib/cost-data";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -61,6 +63,7 @@ export default async function RecipeDetailPage({
   const r = recipe as Recipe;
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
+  const rc = recipeCost(ings, await loadPrices());
   const jsonLd = recipeJsonLd(r, ings, stps);
   const imageUrl = publicImageUrl(r.image_path);
 
@@ -96,6 +99,15 @@ export default async function RecipeDetailPage({
         </div>
         <p className="mt-3 font-mono text-xs text-[var(--ink2)]">
           Makes {r.base_servings} servings
+          {rc.cost > 0 && (
+            <>
+              {" · "}
+              <span className="text-[var(--ink)]">≈ {money(rc.cost)}</span>
+              {" ("}
+              {money(rc.cost / r.base_servings)}/serving
+              {rc.unpriced > 0 ? `, ${rc.unpriced} unpriced` : ""})
+            </>
+          )}
           {r.source_name ? ` · ${r.source_name}` : ""}
         </p>
       </header>

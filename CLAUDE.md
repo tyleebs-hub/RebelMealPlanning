@@ -252,6 +252,34 @@ Pantry staples go in a separate collapsed section since Tyler usually has them.
 Checkbox state persists to `grocery_checks` so he can shop across two trips.
 Include a "copy as plain text" action.
 
+## Cost
+
+Costs are ingredient-driven and reused. A shared `ingredient_prices` catalog stores a
+unit price per normalized `item|unit` key (same key the grocery merge uses). Price an
+ingredient once and every recipe containing it inherits the price.
+
+```
+line cost     = ingredient.qty * unit_price[item|unit]
+recipe cost   = sum of its line costs (base batch); lines with no price are flagged, not guessed
+cook cost     = recipe cost * multiplier
+cost/serving  = cook cost / produced
+```
+
+The weekly readout splits spend the way coverage does. A cook's cost is fixed once you
+buy for it; assigning its servings to more lunch slots does not add cost, it spreads the
+same cost across more meals and lowers cost per meal. That is the interaction: raise a
+multiplier and the lunch bar fills while lunch dollars stay modest.
+
+```
+dinner spend  = sum over cooks of cost/serving * servings consumed by dinner slots
+lunch spend   = sum over cooks of cost/serving * servings consumed by lunch slots
+unallocated   = cooked-but-unclaimed servings * cost/serving
+```
+
+Weekly budgets (`weekly_dinner_budget`, `weekly_lunch_budget`) live in `app_settings` and
+are editable in the UI. Out slots (Costco pizza, eating out) carry no recipe cost. Prices
+are entered inline on the grocery list and read server-side with the secret key.
+
 ## Family food preferences
 
 Use these to filter suggestions and to inform any recipe Claude proposes.
@@ -301,6 +329,6 @@ ahead.
   phone. The desktop layout is secondary.
 - Supabase free tier pauses a project after 7 days of no requests. Weekly use sits close
   to that line. If it becomes annoying, add a scheduled ping, not a paid plan.
-- Do not add: nutrition tracking, cost tracking, multi-household support, notifications,
+- Do not add: nutrition tracking, multi-household support, notifications,
   a native app, or an ingredient-substitution engine.
 - Tyler prefers no em dashes in any user-facing copy.

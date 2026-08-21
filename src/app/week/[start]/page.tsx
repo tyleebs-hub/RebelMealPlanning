@@ -17,7 +17,10 @@ import {
 } from "@/lib/week";
 import { hueMapForEvents } from "@/lib/hues";
 import type { MealType } from "@/lib/types";
+import { recipeCost, weeklyCost, type RecipeCost } from "@/lib/cost";
+import { loadPrices, loadBudgets } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
+import { CostPanel } from "@/components/week/CostPanel";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
 import { autoFillLunches } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
@@ -54,6 +57,24 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   const recipes = (recipeData ?? []) as PickRecipe[];
 
   const coverage = computeCoverage(slots);
+
+  // Weekly cost: sum each planned recipe's ingredient cost, allocate across slots.
+  const plannedIds = [...new Set(cookEvents.map((ce) => ce.recipe_id))];
+  const recipeCostById = new Map<string, RecipeCost>();
+  if (plannedIds.length > 0) {
+    const [{ data: ingRows }, prices] = await Promise.all([
+      sb.from("ingredients").select("recipe_id,qty,unit,item").in("recipe_id", plannedIds),
+      loadPrices(),
+    ]);
+    const byRecipe = new Map<string, { qty: number | null; unit: string | null; item: string }[]>();
+    for (const r of (ingRows ?? []) as { recipe_id: string; qty: number | null; unit: string | null; item: string }[]) {
+      (byRecipe.get(r.recipe_id) ?? byRecipe.set(r.recipe_id, []).get(r.recipe_id)!).push(r);
+    }
+    for (const id of plannedIds) recipeCostById.set(id, recipeCost(byRecipe.get(id) ?? [], prices));
+  }
+  const budgets = await loadBudgets();
+  const cost = weeklyCost(cookEvents, slots, recipeCostById);
+
   const ledgerById = new Map(cookEvents.map((ce) => [ce.id, computeLedger(ce, slots)]));
   // Unassigned portions: cooked but unclaimed (sum of positive availability).
   const spare = cookEvents.reduce((n, ce) => n + Math.max(0, computeLedger(ce, slots).available), 0);
@@ -159,6 +180,10 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
 
       <div className="mt-4">
         <CoverageMeters coverage={coverage} spare={spare} />
+      </div>
+
+      <div className="mt-3">
+        <CostPanel start={start} cost={cost} budgets={budgets} />
       </div>
 
       {sauceNudges.length > 0 && (

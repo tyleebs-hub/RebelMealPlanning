@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadWeek } from "@/lib/week-data";
 import { addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import type { GroceryIngredient } from "@/lib/grocery";
+import { loadPrices } from "@/lib/cost-data";
 import { GroceryList } from "@/components/week/GroceryList";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -39,6 +40,9 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
   for (const c of (checkData ?? []) as { item_key: string; checked: boolean }[]) {
     initialChecks[c.item_key] = c.checked;
   }
+
+  const priceMap = await loadPrices();
+  const initialPrices: Record<string, number> = Object.fromEntries(priceMap);
 
   const events = cookEvents.map((c) => ({
     id: c.id,
@@ -82,6 +86,7 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
             events={events}
             ingredientsByRecipe={ingredientsByRecipe}
             initialChecks={initialChecks}
+            initialPrices={initialPrices}
           />
         )}
       </main>
