@@ -12,10 +12,12 @@ const OPTIONS: { value: Vote; label: string; color: string }[] = [
 ];
 
 export function VoteButtons({
-  suggestionId,
+  start,
+  recipeId,
   current,
 }: {
-  suggestionId: string;
+  start: string;
+  recipeId: string;
   current: Vote | null;
 }) {
   const [vote, setVote] = useState<Vote | null>(current);
@@ -23,7 +25,7 @@ export function VoteButtons({
 
   const choose = (v: Vote) => {
     setVote(v);
-    startTransition(() => castVote(suggestionId, v));
+    startTransition(() => castVote(start, recipeId, v));
   };
 
   return (

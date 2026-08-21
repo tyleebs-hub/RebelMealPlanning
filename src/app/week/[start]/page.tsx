@@ -18,10 +18,8 @@ import {
 import { hueMapForEvents } from "@/lib/hues";
 import type { MealType } from "@/lib/types";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
-import { MultiplierStepper } from "@/components/week/MultiplierStepper";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
-import { addCookEvent, autoFillLunches, deleteCookEvent, addSuggestion, removeSuggestion } from "./actions";
-import { VoteButtons } from "@/components/week/VoteButtons";
+import { autoFillLunches } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -107,7 +105,14 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     isComponent: r.is_component,
   }));
 
-  const preps = cookEvents.filter((ce) => ce.kind === "prep");
+  // The recipes Tyler has drafted this week — what Charity votes on.
+  const plannedRecipes = [
+    ...new Map(cookEvents.map((ce) => [ce.recipe_id, ce.recipe.title])).entries(),
+  ].map(([id, title]) => ({ id, title }));
+  const charityVoteByRecipe = new Map<string, Vote | null>();
+  for (const s of suggestions) {
+    charityVoteByRecipe.set(s.recipe_id, (s.votes.find((v) => v.who === "charity")?.vote ?? null) as Vote | null);
+  }
 
   // Sauce-variation nudge: cook events feeding 4+ lunch slots (CLAUDE.md).
   const lunchByEvent = new Map<string, number>();
@@ -161,95 +166,34 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         <WeekGrid start={start} days={days} cooks={pickerCooks} recipes={pickerRecipes} sauces={SAUCE_ROTATION} />
       </section>
 
-      {/* Prep & components — batch cooks that feed lunches without owning a dinner slot */}
-      <section className="mt-8">
-        <h2 className={EYEBROW}>Prep &amp; components</h2>
-        {preps.length > 0 && (
-          <ul className="mt-3 flex flex-col gap-2">
-            {preps.map((ce) => {
-              const l = ledgerById.get(ce.id)!;
-              const hue = hueMap.get(ce.id)!;
-              return (
-                <li key={ce.id} className="rounded-xl border border-[var(--rule)] bg-[var(--card)] p-3" style={{ borderLeftColor: hue.bg, borderLeftWidth: 4 }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium leading-tight">{ce.recipe.title}</p>
-                      <p className={`mt-1 ${EYEBROW}`}>
-                        {ce.day ? dayLabel(ce.day) : "any day"}
-                        {ce.recipe.is_component ? " · component" : ""}
-                        {!ce.recipe.reheats_well ? " · no reheat" : ""}
-                      </p>
-                    </div>
-                    <MultiplierStepper start={start} cookEventId={ce.id} value={ce.multiplier} />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between font-mono text-xs text-[var(--ink2)]">
-                    <span>{l.produced} made · {l.available} free</span>
-                    <form action={deleteCookEvent.bind(null, start, ce.id)}>
-                      <button className="hover:text-[var(--clay-bg)]">Remove</button>
-                    </form>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        <form action={addCookEvent} className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--rule)] p-3">
-          <input type="hidden" name="start" value={start} />
-          <input type="hidden" name="kind" value="prep" />
-          <select name="recipeId" required defaultValue="" className="min-w-0 flex-1 rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm">
-            <option value="" disabled>Add a prep / component batch…</option>
-            {[...recipes].sort((a, b) => Number(b.is_component) - Number(a.is_component)).map((r) => (
-              <option key={r.id} value={r.id}>{r.title}{r.is_component ? " · component" : ""}</option>
-            ))}
-          </select>
-          <input type="number" name="multiplier" min={1} max={8} defaultValue={2} className="w-16 rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm" />
-          <button className="rounded-lg bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--paper)] hover:opacity-90">Add</button>
-        </form>
-      </section>
-
-      {/* Suggestions + voting */}
+      {/* Charity's votes — she votes on whatever you've drafted above */}
       <section className="mt-8">
         <div className="flex items-center justify-between gap-2">
-          <h2 className={EYEBROW}>Suggestions</h2>
+          <h2 className={EYEBROW}>Charity&apos;s votes</h2>
           <PingCharity />
         </div>
 
-        {suggestions.length > 0 && (
-          <ul className="mt-3 flex flex-col gap-2">
-            {suggestions.map((s) => {
-              const tyler = (s.votes.find((v) => v.who === "tyler")?.vote ?? null) as Vote | null;
-              const charity = s.votes.find((v) => v.who === "charity")?.vote ?? null;
+        {plannedRecipes.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--ink2)]">
+            Draft the week above, then tap Ping Charity to send her the list to vote on.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {plannedRecipes.map((r) => {
+              const v = charityVoteByRecipe.get(r.id) ?? null;
+              const tone =
+                v === "yes" ? "var(--go)" : v === "pass" ? "var(--clay-bg)" : v === "sure" ? "var(--amber)" : "var(--ink2)";
               return (
-                <li key={s.id} className="rounded-xl border border-[var(--rule)] bg-[var(--card)] p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium leading-tight">{s.recipe.title}</p>
-                      {s.note && <p className="mt-0.5 text-xs text-[var(--ink2)]">{s.note}</p>}
-                    </div>
-                    <form action={removeSuggestion.bind(null, start, s.id)}>
-                      <button className="text-xs text-[var(--ink2)] hover:text-[var(--clay-bg)]">Remove</button>
-                    </form>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <VoteButtons suggestionId={s.id} current={tyler} />
-                    <span className="font-mono text-xs text-[var(--ink2)]">Charity: {charity ?? "—"}</span>
-                  </div>
+                <li key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm">
+                  <span>{r.title}</span>
+                  <span className="font-mono text-xs" style={{ color: tone }}>
+                    {v === "yes" ? "excited" : v === "pass" ? "wants gone" : v === "sure" ? "sure" : "no vote yet"}
+                  </span>
                 </li>
               );
             })}
           </ul>
         )}
-
-        <form action={addSuggestion} className="mt-3 flex flex-col gap-2 rounded-xl border border-dashed border-[var(--rule)] p-3">
-          <input type="hidden" name="start" value={start} />
-          <select name="recipeId" required defaultValue="" className="rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm">
-            <option value="" disabled>Suggest a recipe…</option>
-            {recipes.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
-          </select>
-          <input name="note" placeholder="Note (optional) — e.g. have frozen chicken to use up" className="rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm" />
-          <button className="self-start rounded-lg bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--paper)] hover:opacity-90">Add suggestion</button>
-        </form>
       </section>
       </main>
     </>

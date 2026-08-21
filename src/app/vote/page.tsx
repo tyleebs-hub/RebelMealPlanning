@@ -6,6 +6,7 @@ import { DAYS, addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/li
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
+import { publicImageUrl } from "@/lib/storage";
 import { AppHeader } from "@/components/AppHeader";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
@@ -48,8 +49,23 @@ export default async function VotePage({
   };
 
   const hasPlan = slots.some((s) => s.fill_type);
-  const votedCount = suggestions.filter((s) => s.votes.some((v) => v.who === me)).length;
-  const pct = suggestions.length ? Math.round((votedCount / suggestions.length) * 100) : 0;
+
+  // The recipes Tyler drafted this week — distinct across all cooks — are what
+  // Charity votes on. No manual "suggestions" step.
+  const plannedRecipes = [
+    ...new Map(cookEvents.map((c) => [c.recipe_id, c.recipe])).entries(),
+  ].map(([id, recipe]) => ({ id, title: recipe.title, image_path: recipe.image_path }));
+
+  const voteByRecipe = new Map<string, { mine: Vote | null; theirs: Vote | null }>();
+  for (const s of suggestions) {
+    voteByRecipe.set(s.recipe_id, {
+      mine: (s.votes.find((v) => v.who === me)?.vote ?? null) as Vote | null,
+      theirs: (s.votes.find((v) => v.who === other)?.vote ?? null) as Vote | null,
+    });
+  }
+
+  const votedCount = plannedRecipes.filter((r) => voteByRecipe.get(r.id)?.mine).length;
+  const pct = plannedRecipes.length ? Math.round((votedCount / plannedRecipes.length) * 100) : 0;
 
   return (
     <>
@@ -72,31 +88,29 @@ export default async function VotePage({
           <Link href={`/vote?w=${next}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">→</Link>
         </div>
 
-        {suggestions.length > 0 && (
+        {plannedRecipes.length > 0 && (
           <section className="mt-6">
             <div className="flex items-center justify-between">
               <h2 className={EYEBROW}>Vote · {WHO_LABEL[me]}</h2>
-              <span className="font-mono text-xs text-[var(--ink2)]">{votedCount}/{suggestions.length}</span>
+              <span className="font-mono text-xs text-[var(--ink2)]">{votedCount}/{plannedRecipes.length}</span>
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--rule2)]">
               <div className="h-full rounded-full bg-[var(--go)] transition-[width] duration-300 ease-out motion-reduce:transition-none" style={{ width: `${pct}%` }} />
             </div>
 
             <ul className="mt-4 flex flex-col gap-4">
-              {suggestions.map((s) => {
-                const mine = (s.votes.find((v) => v.who === me)?.vote ?? null) as Vote | null;
-                const theirs = s.votes.find((v) => v.who === other)?.vote ?? null;
+              {plannedRecipes.map((r) => {
+                const votes = voteByRecipe.get(r.id);
                 return (
-                  <li key={s.id} className="overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--card)]">
-                    <DishArt title={s.recipe.title} hue={hueForRecipe(s.recipe_id)} tall />
+                  <li key={r.id} className="overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--card)]">
+                    <DishArt imageUrl={publicImageUrl(r.image_path)} title={r.title} hue={hueForRecipe(r.id)} tall />
                     <div className="p-4">
-                      <h3 className="font-display text-xl leading-tight">{s.recipe.title}</h3>
-                      {s.note && <p className="mt-1 text-sm text-[var(--ink2)]">{s.note}</p>}
-                      {theirs && (
-                        <p className="mt-2 font-mono text-[11px] text-[var(--ink2)]">{WHO_LABEL[other]} said {theirs}</p>
+                      <h3 className="font-display text-xl leading-tight">{r.title}</h3>
+                      {votes?.theirs && (
+                        <p className="mt-1 font-mono text-[11px] text-[var(--ink2)]">{WHO_LABEL[other]} said {votes.theirs}</p>
                       )}
                       <div className="mt-3">
-                        <VoteButtons suggestionId={s.id} current={mine} />
+                        <VoteButtons start={start} recipeId={r.id} current={votes?.mine ?? null} />
                       </div>
                     </div>
                   </li>
@@ -107,12 +121,10 @@ export default async function VotePage({
         )}
 
         <section className="mt-8">
-          <h2 className={EYEBROW}>{thisWeek ? "Planned so far" : "The week"}</h2>
+          <h2 className={EYEBROW}>{thisWeek ? "The plan" : "The week"}</h2>
           {!hasPlan ? (
             <p className="mt-3 rounded-xl border border-[var(--rule)] bg-[var(--card)] p-4 text-sm text-[var(--ink2)]">
-              {suggestions.length === 0
-                ? "Nothing planned yet for this week."
-                : "No meals planned yet — vote above and Tyler will build the week."}
+              Nothing planned yet for this week — check back once Tyler drafts it.
             </p>
           ) : (
             <ul className="mt-3 overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--card)]">

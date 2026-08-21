@@ -76,6 +76,7 @@ export function dayDateLabel(mondayIso: string, day: Day): string {
 export type CookRecipe = {
   id: string;
   title: string;
+  image_path: string | null;
   base_servings: number;
   reheats_well: boolean;
   is_component: boolean;

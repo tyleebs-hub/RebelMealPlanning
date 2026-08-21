@@ -42,14 +42,14 @@ export function WeekGrid({
 
   return (
     <>
-      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-7">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
         {days.map((d) => (
           <div key={d.day} className="rounded-xl border border-[var(--rule)] bg-[var(--card)] p-3">
             <div className="flex items-baseline justify-between">
-              <span className="font-display text-sm">{d.label}</span>
+              <span className="font-display text-[15px]">{d.label}</span>
               <span className={`font-mono ${EYEBROW}`}>{d.dateLabel}</span>
             </div>
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="mt-2.5 flex flex-col gap-2.5">
               <Slot start={start} day={d.day} meal="dinner" view={d.dinner} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
               <Slot start={start} day={d.day} meal="lunch" view={d.lunch} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
             </div>
@@ -92,7 +92,7 @@ function Slot({
 }) {
   const label = meal === "dinner" ? "Dinner" : "Lunch";
   // Fixed heights per meal so dinner rows and lunch rows align across all days.
-  const H = meal === "dinner" ? "h-[132px]" : "h-[104px]";
+  const H = meal === "dinner" ? "h-[168px]" : "h-[128px]";
   const [, startT] = useTransition();
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();

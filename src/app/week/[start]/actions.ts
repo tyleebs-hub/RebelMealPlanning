@@ -273,14 +273,33 @@ export async function removeSuggestion(start: string, suggestionId: string) {
 
 // Cast the current user's vote. "who" is the cookie identity, never trusted
 // from the client.
-export async function castVote(suggestionId: string, vote: "yes" | "sure" | "pass") {
+export async function castVote(start: string, recipeId: string, vote: "yes" | "sure" | "pass") {
   const who = await currentWho();
   if (!who) throw new Error("not signed in");
   const sb = getSupabaseAdmin();
-  await sb
-    .from("votes")
-    .upsert({ suggestion_id: suggestionId, who, vote }, { onConflict: "suggestion_id,who" });
+  const weekId = await weekIdForStart(sb, start);
+  // Votes anchor to a suggestion row per (week, recipe); create it lazily so
+  // Charity votes directly on whatever Tyler drafted, with no manual step.
+  const { data: existing } = await sb
+    .from("suggestions")
+    .select("id")
+    .eq("week_id", weekId)
+    .eq("recipe_id", recipeId)
+    .limit(1)
+    .maybeSingle();
+  let suggestionId = existing?.id as string | undefined;
+  if (!suggestionId) {
+    const { data: created } = await sb
+      .from("suggestions")
+      .insert({ week_id: weekId, recipe_id: recipeId })
+      .select("id")
+      .single();
+    suggestionId = created?.id;
+  }
+  if (!suggestionId) throw new Error("could not record vote");
+  await sb.from("votes").upsert({ suggestion_id: suggestionId, who, vote }, { onConflict: "suggestion_id,who" });
   revalidatePath("/vote");
+  revalidatePath(`/week/${start}`);
 }
 
 // Generate the shareable vote link + message for Charity. Admin only.

@@ -4,7 +4,7 @@ import type { CookEvent, Slot } from "@/lib/week";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const RECIPE_COLS =
-  "id,title,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min";
+  "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min";
 
 // Get or create the week row for a Monday start date. Idempotent.
 export async function weekIdForStart(sb: SupabaseClient, start: string): Promise<string> {
