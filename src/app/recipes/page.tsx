@@ -3,6 +3,8 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Recipe } from "@/lib/types";
 import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
 import { publicImageUrl } from "@/lib/storage";
+import { DishArt } from "@/components/DishArt";
+import { hueForRecipe } from "@/lib/hues";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,9 @@ export default async function RecipesPage() {
     <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Recipe Library</h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">The cookbook</div>
+          <h1 className="font-display text-2xl tracking-tight sm:text-3xl">Recipe Library</h1>
+          <p className="mt-1 font-mono text-xs text-[var(--ink2)]">
             {recipes.length > 0
               ? `${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"}`
               : "The household cookbook."}
@@ -48,7 +51,7 @@ export default async function RecipesPage() {
         </div>
         <Link
           href="/recipes/new"
-          className="shrink-0 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="shrink-0 rounded-lg bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--paper)] hover:opacity-90"
         >
           Add recipe
         </Link>
@@ -76,18 +79,11 @@ export default async function RecipesPage() {
           <li key={r.id}>
             <Link
               href={`/recipes/${r.id}`}
-              className="block h-full overflow-hidden rounded-xl border border-neutral-200 bg-white transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
+              className="block h-full overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--card)] transition-colors hover:border-[var(--ink2)]"
             >
-              {publicImageUrl(r.image_path) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={publicImageUrl(r.image_path)!}
-                  alt={r.title}
-                  className="h-32 w-full object-cover"
-                />
-              )}
+              <DishArt imageUrl={publicImageUrl(r.image_path)} title={r.title} hue={hueForRecipe(r.id)} />
               <div className="p-4">
-              <h2 className="text-lg font-semibold leading-tight">{r.title}</h2>
+              <h2 className="font-display text-lg leading-tight">{r.title}</h2>
               <div className="mt-2">
                 <MealTypeChips types={r.meal_types} />
               </div>

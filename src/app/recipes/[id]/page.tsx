@@ -6,6 +6,10 @@ import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta"
 import { recipeJsonLd } from "@/lib/jsonld";
 import { publicImageUrl } from "@/lib/storage";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import { DishArt } from "@/components/DishArt";
+import { hueForRecipe } from "@/lib/hues";
+
+const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
 export const dynamic = "force-dynamic";
 
@@ -67,55 +71,41 @@ export default async function RecipeDetailPage({
       />
       <BackLink />
 
-      <header className="mt-4">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {r.title}
-        </h1>
+      <div className="mt-4 overflow-hidden rounded-xl border border-[var(--rule)]">
+        <DishArt imageUrl={imageUrl} title={r.title} hue={hueForRecipe(r.id)} tall />
+      </div>
+      <div className="mt-2">
+        <PhotoUpload recipeId={r.id} hasPhoto={!!imageUrl} />
+      </div>
+
+      <header className="mt-5">
+        <h1 className="font-display text-2xl tracking-tight sm:text-3xl">{r.title}</h1>
         <div className="mt-3 flex flex-col gap-2">
           <MealTypeChips types={r.meal_types} />
           <TimeLine recipe={r} />
           <RecipeBadges recipe={r} />
         </div>
-        <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="mt-3 font-mono text-xs text-[var(--ink2)]">
           Makes {r.base_servings} servings
           {r.source_name ? ` · ${r.source_name}` : ""}
         </p>
       </header>
 
-      <div className="mt-4">
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={r.title}
-            className="mb-3 max-h-96 w-full rounded-xl object-cover"
-          />
-        )}
-        <PhotoUpload recipeId={r.id} hasPhoto={!!imageUrl} />
-      </div>
-
       {r.notes && (
-        <p className="mt-5 rounded-lg bg-neutral-50 p-4 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-          {r.notes}
-        </p>
+        <p className="mt-5 rounded-lg bg-[var(--card)] p-4 text-sm text-[var(--ink2)]">{r.notes}</p>
       )}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold">Ingredients</h2>
+        <h2 className={EYEBROW}>Ingredients</h2>
         {ings.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">No ingredients listed.</p>
+          <p className="mt-2 text-sm text-[var(--ink2)]">No ingredients listed.</p>
         ) : (
-          <ul className="mt-3 space-y-1.5">
+          <ul className="mt-3 flex flex-col">
             {ings.map((ing) => (
-              <li key={ing.id} className="flex items-baseline gap-2 text-sm">
-                <span
-                  aria-hidden
-                  className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-600"
-                />
+              <li key={ing.id} className="flex items-baseline gap-2 border-b border-[var(--rule2)] py-1.5 text-sm">
+                <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--rule)" }} />
                 <span>{ingredientLine(ing)}</span>
-                {ing.is_pantry_staple && (
-                  <span className="text-xs text-neutral-400">(staple)</span>
-                )}
+                {ing.is_pantry_staple && <span className="text-xs text-[var(--ink2)]">(staple)</span>}
               </li>
             ))}
           </ul>
@@ -123,14 +113,14 @@ export default async function RecipeDetailPage({
       </section>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold">Steps</h2>
+        <h2 className={EYEBROW}>Steps</h2>
         {stps.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">No steps listed.</p>
+          <p className="mt-2 text-sm text-[var(--ink2)]">No steps listed.</p>
         ) : (
           <ol className="mt-3 space-y-3">
             {stps.map((s, i) => (
               <li key={s.id} className="flex gap-3 text-sm leading-relaxed">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white dark:bg-white dark:text-neutral-900">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ink)] font-mono text-xs text-[var(--paper)]">
                   {i + 1}
                 </span>
                 <span className="pt-0.5">{s.body}</span>
@@ -147,7 +137,7 @@ function BackLink() {
   return (
     <Link
       href="/recipes"
-      className="text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:hover:text-neutral-200"
+      className="text-sm text-[var(--ink2)] transition-colors hover:text-[var(--ink)]"
     >
       ← All recipes
     </Link>

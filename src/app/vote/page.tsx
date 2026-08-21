@@ -12,6 +12,10 @@ import {
 } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { logout } from "@/app/logout/action";
+import { DishArt } from "@/components/DishArt";
+import { hueForRecipe } from "@/lib/hues";
+
+const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
 export const dynamic = "force-dynamic";
 
@@ -87,18 +91,21 @@ export default async function VotePage({
       {/* voting */}
       {suggestions.length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Vote on dinner ideas</h2>
+          <h2 className={EYEBROW}>Vote on dinner ideas</h2>
           <ul className="mt-3 flex flex-col gap-3">
             {suggestions.map((s) => {
               const mine = (s.votes.find((v) => v.who === me)?.vote ?? null) as Vote | null;
               const theirs = s.votes.find((v) => v.who === other)?.vote ?? null;
               return (
-                <li key={s.id} className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                  <p className="font-semibold">{s.recipe.title}</p>
-                  {s.note && <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">{s.note}</p>}
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <VoteButtons suggestionId={s.id} current={mine} />
-                    {theirs && <span className="text-xs text-neutral-400">{WHO_LABEL[other]}: {theirs}</span>}
+                <li key={s.id} className="overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--card)]">
+                  <DishArt title={s.recipe.title} hue={hueForRecipe(s.recipe_id)} tall />
+                  <div className="p-4">
+                    <p className="font-display text-lg leading-tight">{s.recipe.title}</p>
+                    {s.note && <p className="mt-0.5 text-sm text-[var(--ink2)]">{s.note}</p>}
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <VoteButtons suggestionId={s.id} current={mine} />
+                      {theirs && <span className="font-mono text-xs text-[var(--ink2)]">{WHO_LABEL[other]}: {theirs}</span>}
+                    </div>
                   </div>
                 </li>
               );

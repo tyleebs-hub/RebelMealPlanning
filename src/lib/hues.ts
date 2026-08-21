@@ -17,6 +17,13 @@ export function hueForIndex(i: number): Hue {
   return HUES[((i % HUES.length) + HUES.length) % HUES.length];
 }
 
+// Deterministic hue per recipe (for placeholder dish art), derived from its id.
+export function hueForRecipe(id: string): Hue {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return hueForIndex(h);
+}
+
 // Stable ordering for hue assignment: by day (mon..sun), then dinner before
 // prep, then id — so the same week always colors the same way.
 const DAY_ORDER: Record<string, number> = {
