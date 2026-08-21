@@ -24,6 +24,11 @@ export async function middleware(req: NextRequest) {
   // view. Charity arrives here with no cookie (see CLAUDE.md > Auth).
   const voteToken = pathname.match(/^\/vote\/(.+)$/);
   if (voteToken) {
+    // If already signed in, don't overwrite the session — e.g. Tyler (admin)
+    // previewing the link should stay admin, not get downgraded to household.
+    const existing = await verifySession(req.cookies.get(COOKIE_NAME)?.value);
+    if (existing) return NextResponse.redirect(new URL("/vote", req.url));
+
     const token = decodeURIComponent(voteToken[1]);
     const role = await verifySession(token);
     if (role) {

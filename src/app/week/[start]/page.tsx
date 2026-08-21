@@ -79,8 +79,8 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
       <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
-          ← Home
+        <Link href="/logout" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200">
+          Sign out
         </Link>
         <div className="flex gap-4">
           <Link href={`/week/${start}/grocery`} className="text-sm font-medium text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100">
