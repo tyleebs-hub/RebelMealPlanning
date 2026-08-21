@@ -50,6 +50,8 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
 
   const coverage = computeCoverage(slots);
   const ledgerById = new Map(cookEvents.map((ce) => [ce.id, computeLedger(ce, slots)]));
+  // Unassigned portions: cooked but unclaimed (sum of positive availability).
+  const spare = cookEvents.reduce((n, ce) => n + Math.max(0, computeLedger(ce, slots).available), 0);
   const eventById = new Map(cookEvents.map((ce) => [ce.id, ce]));
   const slotByKey = new Map(slots.map((s) => [`${s.day}|${s.meal}`, s]));
   const hueMap = hueMapForEvents(cookEvents);
@@ -146,7 +148,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       </header>
 
       <div className="mt-4">
-        <CoverageMeters coverage={coverage} />
+        <CoverageMeters coverage={coverage} spare={spare} />
       </div>
 
       {sauceNudges.length > 0 && (
