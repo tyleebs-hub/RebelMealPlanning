@@ -8,6 +8,8 @@ import { currentWho, requireAuth } from "@/lib/session";
 import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
 import { DAYS, type Day, type Meal } from "@/lib/week";
+import { fetchRecipeFromUrl } from "@/app/recipes/new/actions";
+import { parseIngredient } from "@/lib/ingredient-parse";
 
 function revalidate(start: string) {
   revalidatePath(`/week/${start}`);
@@ -300,6 +302,85 @@ export async function castVote(start: string, recipeId: string, vote: "yes" | "s
   await sb.from("votes").upsert({ suggestion_id: suggestionId, who, vote }, { onConflict: "suggestion_id,who" });
   revalidatePath("/vote");
   revalidatePath(`/week/${start}`);
+}
+
+// Charity (or Tyler) suggests a new recipe from a URL on the vote page: import
+// it into the library and flag it for this week so it surfaces on the planner.
+export async function suggestRecipe(
+  start: string,
+  rawUrl: string,
+  note: string,
+): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
+  const who = await currentWho();
+  if (!who) return { ok: false, error: "Not signed in." };
+
+  const fetched = await fetchRecipeFromUrl(rawUrl);
+  if (!fetched.ok) return fetched;
+  const r = fetched.recipe;
+
+  const sb = getSupabaseAdmin();
+  const { data: recipe, error } = await sb
+    .from("recipes")
+    .insert({
+      title: r.title,
+      // Suggested from the dinner-vote page — default to dinner; Tyler can relabel.
+      meal_types: ["dinner"],
+      source_name: r.sourceName,
+      source_url: r.sourceUrl,
+      active_min: r.activeMin,
+      total_min: r.totalMin,
+      base_servings: r.servings || 4,
+    })
+    .select("id")
+    .single();
+  if (error || !recipe) return { ok: false, error: "Could not save that recipe." };
+
+  if (r.ingredients.length > 0) {
+    await sb.from("ingredients").insert(
+      r.ingredients.map((line, i) => {
+        const p = parseIngredient(line);
+        return {
+          recipe_id: recipe.id,
+          sort_order: i + 1,
+          qty: p.qty,
+          unit: p.unit,
+          item: p.item,
+          raw_text: p.raw_text,
+        };
+      }),
+    );
+  }
+  if (r.steps.length > 0) {
+    await sb.from("steps").insert(
+      r.steps.map((body, i) => ({ recipe_id: recipe.id, sort_order: i + 1, body })),
+    );
+  }
+
+  const weekId = await weekIdForStart(sb, start);
+  const { count } = await sb
+    .from("suggestions")
+    .select("id", { count: "exact", head: true })
+    .eq("week_id", weekId);
+  const { data: suggestion } = await sb
+    .from("suggestions")
+    .insert({
+      week_id: weekId,
+      recipe_id: recipe.id,
+      note: note.trim() || null,
+      sort_order: (count ?? 0) + 1,
+    })
+    .select("id")
+    .single();
+  // Record the suggester's own enthusiasm so it reads as a "yes".
+  if (suggestion) {
+    await sb
+      .from("votes")
+      .upsert({ suggestion_id: suggestion.id, who, vote: "yes" }, { onConflict: "suggestion_id,who" });
+  }
+
+  revalidatePath("/vote");
+  revalidatePath(`/week/${start}`);
+  return { ok: true, title: r.title };
 }
 
 // Generate the shareable vote link + message for Charity. Admin only.

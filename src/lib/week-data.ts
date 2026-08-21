@@ -76,7 +76,7 @@ export type SuggestionWithVotes = {
   recipe_id: string;
   note: string | null;
   sort_order: number | null;
-  recipe: { title: string };
+  recipe: { title: string; image_path: string | null };
   votes: { who: Who; vote: Vote }[];
 };
 
@@ -87,7 +87,7 @@ export async function loadSuggestions(
   const weekId = await weekIdForStart(sb, start);
   const { data } = await sb
     .from("suggestions")
-    .select("id,recipe_id,note,sort_order,recipe:recipes(title),votes(who,vote)")
+    .select("id,recipe_id,note,sort_order,recipe:recipes(title,image_path),votes(who,vote)")
     .eq("week_id", weekId)
     .order("sort_order");
   return { weekId, suggestions: (data ?? []) as unknown as SuggestionWithVotes[] };

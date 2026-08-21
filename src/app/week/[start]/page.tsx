@@ -125,6 +125,13 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     charityVoteByRecipe.set(s.recipe_id, (s.votes.find((v) => v.who === "charity")?.vote ?? null) as Vote | null);
   }
 
+  // Recipes suggested this week that aren't drafted into the plan yet — the
+  // "Charity wants to try this" flag. Once you cook it, it leaves this list.
+  const plannedRecipeIds = new Set(cookEvents.map((ce) => ce.recipe_id));
+  const charityPicks = suggestions
+    .filter((s) => !plannedRecipeIds.has(s.recipe_id))
+    .map((s) => ({ id: s.recipe_id, title: s.recipe.title, note: s.note }));
+
   // Sauce-variation nudge: cook events feeding 4+ lunch slots (CLAUDE.md).
   const lunchByEvent = new Map<string, number>();
   for (const s of slots) {
@@ -162,6 +169,26 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
             </p>
           ))}
         </div>
+      )}
+
+      {charityPicks.length > 0 && (
+        <section className="mt-4 rounded-xl border px-4 py-3" style={{ borderColor: "var(--go)", background: "var(--go-soft, var(--rule2))" }}>
+          <h2 className={EYEBROW}>Charity wants to try</h2>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {charityPicks.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                <span>
+                  <span className="font-medium">{p.title}</span>
+                  {p.note && <span className="ml-2 text-[var(--ink2)]">{p.note}</span>}
+                </span>
+                <Link href={`/recipes/${p.id}`} className="shrink-0 font-mono text-xs text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
+                  view
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-mono text-[10px] text-[var(--ink2)]">Tap a day&apos;s + Dinner to work one in — it clears from here once you do.</p>
+        </section>
       )}
 
       {/* The week — tap a slot to fill it */}
