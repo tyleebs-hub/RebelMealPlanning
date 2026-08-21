@@ -19,14 +19,20 @@ export function DishArt({
       <img
         src={imageUrl}
         alt={title}
-        className={`w-full object-cover ${tall ? "max-h-72" : "h-32"}`}
+        className={
+          tall
+            ? // detail / vote: show the whole photo, no crop, capped height
+              "block max-h-[70vh] w-full object-contain"
+            : // library tiles: gentle 4:3 crop instead of a tight zoom
+              "block aspect-[4/3] w-full object-cover"
+        }
       />
     );
   }
   return (
     <div
-      className="relative flex items-center justify-center overflow-hidden"
-      style={{ background: hue.soft, height: tall ? 160 : 92 }}
+      className={`relative flex items-center justify-center overflow-hidden ${tall ? "aspect-[16/9]" : "aspect-[4/3]"}`}
+      style={{ background: hue.soft }}
     >
       <svg viewBox="0 0 120 80" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
         <circle cx="60" cy="40" r="26" fill="none" stroke={hue.bg} strokeWidth="1.25" opacity="0.5" />
