@@ -12,6 +12,6 @@ export default async function Home() {
   const who = await verifySession(jar.get(COOKIE_NAME)?.value);
   if (!who) redirect("/login");
 
-  // Charity lands on voting; everyone else on the planner. Both have full access.
-  redirect(who === "charity" ? "/vote" : "/week");
+  // Everyone lands on the vote/record page; Tyler taps "Week" to plan.
+  redirect("/vote");
 }
