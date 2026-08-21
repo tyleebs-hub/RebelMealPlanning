@@ -122,7 +122,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     .map(([id, n]) => ({ title: eventById.get(id)?.recipe.title ?? "a cook", count: n }));
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
       <div className="flex items-center justify-between">
         <form action={logout}>
           <button className={linkCls}>Sign out</button>
