@@ -22,7 +22,7 @@ export function MultiplierStepper({
 
   return (
     <div
-      className={`inline-flex items-center rounded-lg border border-neutral-300 dark:border-neutral-700 ${pending ? "opacity-50" : ""}`}
+      className={`inline-flex items-center rounded-lg border border-[var(--rule)] bg-[var(--card)] ${pending ? "opacity-50" : ""}`}
     >
       <button
         type="button"
@@ -33,7 +33,7 @@ export function MultiplierStepper({
       >
         −
       </button>
-      <span className="min-w-9 text-center text-sm font-semibold tabular-nums">×{value}</span>
+      <span className="min-w-9 text-center font-mono text-sm font-medium tabular-nums">×{value}</span>
       <button
         type="button"
         onClick={() => step(1)}
