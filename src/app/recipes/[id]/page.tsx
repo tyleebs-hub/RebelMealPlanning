@@ -11,6 +11,7 @@ import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { AppHeader } from "@/components/AppHeader";
 import { QuickAddButton } from "@/components/week/QuickAdd";
+import { DeleteRecipeButton } from "@/components/DeleteRecipeButton";
 import { recipeCost, money } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 
@@ -89,7 +90,10 @@ export default async function RecipeDetailPage({
       <header className="mt-5">
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-display text-2xl tracking-tight sm:text-3xl">{r.title}</h1>
-          <div className="shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href={`/recipes/${r.id}/edit`} className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm font-medium hover:border-[var(--ink2)]">
+              Edit
+            </Link>
             <QuickAddButton recipeId={r.id} recipeTitle={r.title} variant="full" />
           </div>
         </div>
@@ -161,6 +165,13 @@ export default async function RecipeDetailPage({
           </ol>
         )}
       </section>
+
+      <div className="mt-10 flex items-center justify-between border-t border-[var(--rule2)] pt-4">
+        <Link href={`/recipes/${r.id}/edit`} className="text-sm text-[var(--ink2)] hover:text-[var(--ink)] hover:underline">
+          Edit this recipe
+        </Link>
+        <DeleteRecipeButton recipeId={r.id} title={r.title} />
+      </div>
       </main>
     </>
   );

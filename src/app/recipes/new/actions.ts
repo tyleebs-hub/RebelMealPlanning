@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
+import { inferAisleAndStaple } from "@/lib/aisle";
 import { parseRecipeFromHtml, type ParsedWebRecipe } from "@/lib/recipe-jsonld-parse";
 import type { MealType } from "@/lib/types";
 
@@ -111,6 +112,7 @@ export async function createRecipe(formData: FormData) {
     await sb.from("ingredients").insert(
       ingredientLines.map((line, i) => {
         const p = parseIngredient(line);
+        const { aisle, staple } = inferAisleAndStaple(p.item);
         return {
           recipe_id: recipe.id,
           sort_order: i + 1,
@@ -118,6 +120,8 @@ export async function createRecipe(formData: FormData) {
           unit: p.unit,
           item: p.item,
           raw_text: p.raw_text,
+          aisle,
+          is_pantry_staple: staple,
         };
       }),
     );
