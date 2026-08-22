@@ -61,6 +61,7 @@ export function RecipeForm({
   const [sourceUrl, setSourceUrl] = useState(initial.sourceUrl);
   const [ingredients, setIngredients] = useState(initial.ingredients);
   const [steps, setSteps] = useState(initial.steps);
+  const [imageUrl, setImageUrl] = useState("");
 
   const doFetch = () => {
     setFetchMsg(null);
@@ -76,7 +77,10 @@ export function RecipeForm({
       setSourceUrl(rec.sourceUrl);
       setIngredients(rec.ingredients.join("\n"));
       setSteps(rec.steps.join("\n"));
-      setFetchMsg(`Prefilled — ${rec.ingredients.length} ingredients, ${rec.steps.length} steps. Review and save.`);
+      setImageUrl(rec.imageUrl ?? "");
+      setFetchMsg(
+        `Prefilled — ${rec.ingredients.length} ingredients, ${rec.steps.length} steps${rec.imageUrl ? ", photo found" : ""}. Review and save.`,
+      );
     });
   };
 
@@ -100,11 +104,19 @@ export function RecipeForm({
             </button>
           </div>
           {fetchMsg && <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{fetchMsg}</p>}
+          {imageUrl && (
+            <div className="mt-2 flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
+              <span className="text-xs text-neutral-500">This photo will be imported when you save.</span>
+            </div>
+          )}
         </div>
       )}
 
       <form action={action} className="mt-6 flex flex-col gap-4">
         {recipeId && <input type="hidden" name="id" value={recipeId} />}
+        {imageUrl && <input type="hidden" name="image_url" value={imageUrl} />}
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Title</span>

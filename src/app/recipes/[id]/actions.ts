@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
 import { inferAisleAndStaple } from "@/lib/aisle";
+import { importImageFromUrl } from "@/lib/import-image";
 import type { MealType } from "@/lib/types";
 
 const ALLOWED_FLAGS = new Set(["reheats_well", "kids_like", "scales_cheaply"]);
@@ -96,6 +97,13 @@ export async function updateRecipe(formData: FormData) {
     await sb.from("steps").insert(
       stepLines.map((body, i) => ({ recipe_id: id, sort_order: i + 1, body })),
     );
+  }
+
+  // Pull a hero image if one was imported and the recipe has no photo yet.
+  const imageUrl = String(formData.get("image_url") || "").trim();
+  if (imageUrl) {
+    const { data: cur } = await sb.from("recipes").select("image_path").eq("id", id).single();
+    if (!cur?.image_path) await importImageFromUrl(sb, id, imageUrl);
   }
 
   revalidatePath(`/recipes/${id}`);

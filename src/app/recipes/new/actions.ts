@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
 import { inferAisleAndStaple } from "@/lib/aisle";
+import { importImageFromUrl } from "@/lib/import-image";
 import { parseRecipeFromHtml, type ParsedWebRecipe } from "@/lib/recipe-jsonld-parse";
 import type { MealType } from "@/lib/types";
 
@@ -136,6 +137,10 @@ export async function createRecipe(formData: FormData) {
       stepLines.map((body, i) => ({ recipe_id: recipe.id, sort_order: i + 1, body })),
     );
   }
+
+  // Pull the hero image from the imported page, if one was found (best-effort).
+  const imageUrl = String(formData.get("image_url") || "").trim();
+  if (imageUrl) await importImageFromUrl(sb, recipe.id, imageUrl);
 
   redirect(`/recipes/${recipe.id}`);
 }
