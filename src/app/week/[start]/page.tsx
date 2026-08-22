@@ -18,7 +18,7 @@ import {
 import { hueMapForEvents } from "@/lib/hues";
 import type { MealType } from "@/lib/types";
 import { recipeCost, weeklyCost, type RecipeCost } from "@/lib/cost";
-import { loadPrices, loadBudgets } from "@/lib/cost-data";
+import { loadPrices } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { CostPanel } from "@/components/week/CostPanel";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
@@ -72,7 +72,6 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     }
     for (const id of plannedIds) recipeCostById.set(id, recipeCost(byRecipe.get(id) ?? [], prices));
   }
-  const budgets = await loadBudgets();
   const cost = weeklyCost(cookEvents, slots, recipeCostById);
 
   const ledgerById = new Map(cookEvents.map((ce) => [ce.id, computeLedger(ce, slots)]));
@@ -183,7 +182,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       </div>
 
       <div className="mt-3">
-        <CostPanel start={start} cost={cost} budgets={budgets} />
+        <CostPanel start={start} cost={cost} />
       </div>
 
       {sauceNudges.length > 0 && (

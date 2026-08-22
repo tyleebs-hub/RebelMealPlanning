@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Ingredient, Recipe, Step } from "@/lib/types";
-import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
+import { MealTypeChips, TimeLine } from "@/components/recipe-meta";
+import { RecipeFlagToggles } from "@/components/RecipeFlagToggles";
 import { recipeJsonLd } from "@/lib/jsonld";
 import { publicImageUrl } from "@/lib/storage";
 import { PhotoUpload } from "@/components/PhotoUpload";
@@ -95,7 +96,17 @@ export default async function RecipeDetailPage({
         <div className="mt-3 flex flex-col gap-2">
           <MealTypeChips types={r.meal_types} />
           <TimeLine recipe={r} />
-          <RecipeBadges recipe={r} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {r.is_component && (
+              <span className="inline-flex items-center rounded-full border border-violet-400/60 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                Component
+              </span>
+            )}
+            <RecipeFlagToggles
+              recipeId={r.id}
+              initial={{ reheats_well: r.reheats_well, kids_like: r.kids_like, scales_cheaply: r.scales_cheaply }}
+            />
+          </div>
         </div>
         <p className="mt-3 font-mono text-xs text-[var(--ink2)]">
           Makes {r.base_servings} servings
