@@ -20,7 +20,7 @@ const mono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meal Planner",
+  title: "Leber Family Meals",
   description: "The Leber household meal planner.",
 };
 

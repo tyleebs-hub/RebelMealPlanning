@@ -24,13 +24,13 @@ export function AppHeader({ active }: { active?: Section }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--rule)] bg-[color-mix(in_srgb,var(--paper)_90%,transparent)] backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-1 px-3 py-2 sm:px-4">
-        <Link href="/week" className="flex shrink-0 items-center gap-2" aria-label="The Week — home">
+        <Link href="/week" className="flex shrink-0 items-center gap-2" aria-label="Leber Family Meals — home">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--ink)]" aria-hidden>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2M5 2v20M21 15V2a5 5 0 0 0-3 4.5V12a3 3 0 0 0 3 3zM18 22v-7" />
             </svg>
           </span>
-          <span className="hidden font-display text-base sm:inline">The Week</span>
+          <span className="hidden font-display text-base sm:inline">Leber Family Meals</span>
         </Link>
 
         <nav className="flex items-center gap-0">
