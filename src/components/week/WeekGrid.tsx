@@ -61,8 +61,8 @@ export function WeekGrid({
               <span className={`font-mono ${EYEBROW}`}>{d.dateLabel}</span>
             </div>
             <div className="mt-2.5 flex flex-col gap-2.5">
-              <Slot start={start} day={d.day} meal="dinner" view={d.dinner} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
               <Slot start={start} day={d.day} meal="lunch" view={d.lunch} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
+              <Slot start={start} day={d.day} meal="dinner" view={d.dinner} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
             </div>
           </div>
         ))}
