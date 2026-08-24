@@ -280,6 +280,29 @@ Weekly budgets (`weekly_dinner_budget`, `weekly_lunch_budget`) live in `app_sett
 are editable in the UI. Out slots (Costco pizza, eating out) carry no recipe cost. Prices
 are entered inline on the grocery list and read server-side with the secret key.
 
+## AI suggestions
+
+Two optional AI features, gated on `ANTHROPIC_API_KEY` (server-only). When unset, the
+controls are hidden and the app behaves exactly as before. Model: Claude Sonnet 4.6.
+
+**The model proposes; the backend verifies.** The model never computes portions or decides
+coverage. It returns recipe ids, multipliers, and day placements via a forced tool call
+(strict schema); server code validates every id against the library and rejects anything
+malformed, then the existing portion ledger (`computeCoverage`/`computeLedger`) decides
+coverage. Nothing an AI produced becomes a real cook event without a tap.
+
+- **Generate Week** (`generateWeek`/`acceptProposals` in `ai-actions.ts`): a "Generate
+  plan" button on the week view proposes cooks + multipliers to fill empty dinners and
+  close the lunch gap, respecting locked cooks and Friday pizza. Renders as a draft; accept
+  all / accept one / regenerate; accepting commits cooks and runs the lunch auto-fill.
+- **Charity's Swap** (`swapSlot`/`applySwap`): a swap control on filled dinner slots (week
+  page and vote page) returns 3 alternatives; picking one replaces the slot and re-runs
+  auto-fill to keep coverage intact.
+
+Engine lives in `src/lib/ai/` (client, context, prompt, validate). Context = plannable
+library + last 3 weeks of cook history + current week state, assembled server-side from
+Supabase and sent as prompt context. Draft state is client-side only (no persistence).
+
 ## Family food preferences
 
 Use these to filter suggestions and to inform any recipe Claude proposes.

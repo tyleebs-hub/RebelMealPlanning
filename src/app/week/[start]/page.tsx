@@ -21,6 +21,8 @@ import { recipeCost, weeklyCost, type RecipeCost } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { CostPanel } from "@/components/week/CostPanel";
+import { GeneratePlan } from "@/components/week/GeneratePlan";
+import { isAiConfigured } from "@/lib/ai/client";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
 import { autoFillLunches, removeSuggestion } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
@@ -224,15 +226,18 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
 
       {/* The week — tap a slot to fill it */}
       <section className="mt-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className={EYEBROW}>The week</h2>
-          <form action={autoFillLunches.bind(null, start)}>
-            <button className="rounded-lg border border-[var(--rule)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--rule2)]">
-              Auto-fill lunches
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            {isAiConfigured && <GeneratePlan start={start} />}
+            <form action={autoFillLunches.bind(null, start)}>
+              <button className="rounded-lg border border-[var(--rule)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--rule2)]">
+                Auto-fill lunches
+              </button>
+            </form>
+          </div>
         </div>
-        <WeekGrid start={start} days={days} cooks={pickerCooks} recipes={pickerRecipes} sauces={SAUCE_ROTATION} />
+        <WeekGrid start={start} days={days} cooks={pickerCooks} recipes={pickerRecipes} sauces={SAUCE_ROTATION} aiEnabled={isAiConfigured} />
       </section>
 
       {/* Charity's votes — she votes on whatever you've drafted above */}

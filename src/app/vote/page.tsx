@@ -5,7 +5,9 @@ import { loadSuggestions, loadWeek, type Vote, type Who } from "@/lib/week-data"
 import { DAYS, addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { SuggestRecipe } from "@/components/week/SuggestRecipe";
+import { SwapSheet } from "@/components/week/SwapSheet";
 import { removeSuggestion } from "@/app/week/[start]/actions";
+import { isAiConfigured } from "@/lib/ai/client";
 import { DishArt } from "@/components/DishArt";
 import { hueForRecipe } from "@/lib/hues";
 import { publicImageUrl } from "@/lib/storage";
@@ -165,11 +167,17 @@ export default async function VotePage({
               {DAYS.map((day, i) => {
                 const dinner = slotText(day, "dinner");
                 const lunch = slotText(day, "lunch");
+                const dinnerSlot = slotByKey.get(`${day}|dinner`);
+                const canSwap =
+                  thisWeek && isAiConfigured && (dinnerSlot?.fill_type === "cook" || dinnerSlot?.fill_type === "leftover");
                 return (
-                  <li key={day} className={`flex items-baseline gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-[var(--rule2)]" : ""}`}>
+                  <li key={day} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-[var(--rule2)]" : ""}`}>
                     <span className="w-10 shrink-0 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink2)]">{day}</span>
                     <span className="text-sm">{dinner ?? <span className="text-[var(--ink2)]">—</span>}</span>
-                    {lunch && <span className="ml-auto font-mono text-[11px] text-[var(--ink2)]">lunch: {lunch}</span>}
+                    <span className="ml-auto flex items-center gap-2">
+                      {lunch && <span className="font-mono text-[11px] text-[var(--ink2)]">lunch: {lunch}</span>}
+                      {canSwap && <SwapSheet start={start} day={day} meal="dinner" label="not this →" />}
+                    </span>
                   </li>
                 );
               })}

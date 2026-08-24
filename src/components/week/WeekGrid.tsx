@@ -5,8 +5,10 @@ import { MultiplierStepper } from "./MultiplierStepper";
 import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent } from "@/app/week/[start]/actions";
 import type { Hue } from "@/lib/hues";
 import { RecipeFilterBar } from "@/components/RecipeFilterBar";
+import { SwapSheet } from "@/components/week/SwapSheet";
 import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-filter";
 import type { MealType } from "@/lib/types";
+import type { Day } from "@/lib/week";
 
 export type SlotView = {
   fill: "cook" | "leftover" | "out" | "empty";
@@ -42,12 +44,14 @@ export function WeekGrid({
   cooks,
   recipes,
   sauces,
+  aiEnabled = false,
 }: {
   start: string;
   days: DayView[];
   cooks: PickerCook[];
   recipes: PickerRecipe[];
   sauces: string[];
+  aiEnabled?: boolean;
 }) {
   const [active, setActive] = useState<{ day: string; meal: "dinner" | "lunch" } | null>(null);
 
@@ -61,8 +65,8 @@ export function WeekGrid({
               <span className={`font-mono ${EYEBROW}`}>{d.dateLabel}</span>
             </div>
             <div className="mt-2.5 flex flex-col gap-2.5">
-              <Slot start={start} day={d.day} meal="lunch" view={d.lunch} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
-              <Slot start={start} day={d.day} meal="dinner" view={d.dinner} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
+              <Slot start={start} day={d.day} meal="lunch" view={d.lunch} aiEnabled={aiEnabled} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
+              <Slot start={start} day={d.day} meal="dinner" view={d.dinner} aiEnabled={aiEnabled} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
             </div>
           </div>
         ))}
@@ -94,17 +98,30 @@ function Slot({
   meal,
   view,
   onOpen,
+  aiEnabled,
 }: {
   start: string;
   day: string;
   meal: "dinner" | "lunch";
   view: SlotView;
   onOpen: () => void;
+  aiEnabled: boolean;
 }) {
   const label = meal === "dinner" ? "Dinner" : "Lunch";
   // Fixed heights per meal so dinner rows and lunch rows align across all days.
   const H = meal === "dinner" ? "h-[168px]" : "h-[128px]";
   const [, startT] = useTransition();
+  // AI swap on filled dinner slots (icon button, left of the clear button).
+  const swapBtn =
+    aiEnabled && meal === "dinner" ? (
+      <SwapSheet
+        start={start}
+        day={day as Day}
+        meal="dinner"
+        label="⇄"
+        className="absolute right-8 top-1.5 flex h-6 w-6 items-center justify-center rounded-md text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]"
+      />
+    ) : null;
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();
     // Clearing a cook removes the cook event (and its dependent leftovers);
@@ -149,6 +166,7 @@ function Slot({
         <div className="mt-auto line-clamp-2 font-mono text-[11px]" style={{ color: view.short ? "var(--clay-bg)" : view.hue?.text }}>
           {view.short ? "not enough cooked" : `from ${view.fromDay} · 2 portions${view.sauce ? ` · ${view.sauce}` : ""}`}
         </div>
+        {swapBtn}
         <ClearBtn onClick={clear} />
       </div>
     );
@@ -167,6 +185,7 @@ function Slot({
       <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
         {view.cookEventId && <MultiplierStepper start={start} cookEventId={view.cookEventId} value={view.multiplier ?? 1} />}
       </div>
+      {swapBtn}
       <ClearBtn onClick={clear} />
     </div>
   );
