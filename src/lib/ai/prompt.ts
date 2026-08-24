@@ -107,6 +107,32 @@ ${historyText(ctx)}
 Return exactly 3 DIFFERENT options (never re-propose the current dish${currentTitle ? ` "${currentTitle}"` : ""}, and don't repeat a recipe already locked in this week), each a recipe_id + multiplier + one short line on why it fits. If none can hold the lunch coverage, still return 3 good ${meal} options and set coverage_note to explain the lunch gap.`;
 }
 
+// ---- chat -------------------------------------------------------------------
+
+export const CHAT_SYSTEM = `You are a warm, practical meal-planning helper for the Leber family (Tyler, Charity, 2 young kids) in Southwest Washington. You brainstorm dinners and lunches for THIS week's open slots.
+
+Be concise and concrete. When Tyler mentions ingredients (often on sale), suggest a few specific ways to use them across the open slots — point to existing recipes in the library by exact title when one fits, or propose a simple new dish that suits their tastes. For each idea, say which open day/slot it could fill and whether it reheats for packed lunches. Prefer batch-cook ideas that stretch into lunches when there's a lunch gap. Keep answers short — a few tight bullets, not essays.
+
+Respect the family rules:
+- Include: red meat, chicken, turkey, fish, shrimp, eggs; real cheese and butter; veg in sides/stir-fries/soups; healthy fats; mostly whole foods; frozen pre-chopped veg is fine.
+- Friday dinner is pizza / movie night — don't plan a Friday dinner.
+- HARD EXCLUDES: large salads as a main, Greek yogurt, cottage cheese, ghee, heavily processed convenience food.
+- Weekly targets: ${TARGET_DINNERS} dinners, ${TARGET_LUNCHES * LUNCH_SERVINGS} lunch portions. Only recipes that reheat well should feed lunches.
+
+You only suggest ideas — you don't change the plan. Tyler adds what he likes using the app.`;
+
+export function formatWeekOpenings(ctx: PlanningContext): string {
+  const byKey = new Map(ctx.slots.map((s) => [`${s.day}|${s.meal}`, s]));
+  const emptyDinners = DAYS.filter((d) => d !== "fri" && !byKey.get(`${d}|dinner`)?.fill_type).map(dayLabel);
+  const emptyLunches = DAYS.filter((d) => !byKey.get(`${d}|lunch`)?.fill_type).map(dayLabel);
+  return `THIS WEEK'S STATE:
+- Coverage: ${ctx.coverage.dinnersFilled}/${ctx.coverage.dinnerTarget} dinners, ${ctx.coverage.lunchPortions}/${ctx.coverage.lunchTarget} lunch portions.
+- Open dinner slots (Friday excluded — pizza night): ${emptyDinners.join(", ") || "none"}
+- Open lunch slots: ${emptyLunches.join(", ") || "none"}
+- Already planned (leave these be):
+${lockedCooksText(ctx)}`;
+}
+
 // ---- tool schemas -----------------------------------------------------------
 
 export const PROPOSE_WEEK_TOOL: ToolDef = {

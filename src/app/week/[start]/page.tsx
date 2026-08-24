@@ -22,6 +22,7 @@ import { loadPrices } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { CostPanel } from "@/components/week/CostPanel";
 import { GeneratePlan } from "@/components/week/GeneratePlan";
+import { PlanChat } from "@/components/week/PlanChat";
 import { isAiConfigured } from "@/lib/ai/client";
 import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGrid";
 import { autoFillLunches, removeSuggestion } from "./actions";
@@ -239,6 +240,8 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         </div>
         <WeekGrid start={start} days={days} cooks={pickerCooks} recipes={pickerRecipes} sauces={SAUCE_ROTATION} aiEnabled={isAiConfigured} />
       </section>
+
+      {isAiConfigured && <PlanChat start={start} />}
 
       {/* Charity's votes — she votes on whatever you've drafted above */}
       <section className="mt-8">

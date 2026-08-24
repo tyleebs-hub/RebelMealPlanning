@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
 import { requireAuth } from "@/lib/session";
-import { isAiConfigured, forcedTool } from "@/lib/ai/client";
+import { isAiConfigured, forcedTool, chatComplete, type ChatMessage } from "@/lib/ai/client";
 import { gatherPlanningContext } from "@/lib/ai/context";
 import {
   SYSTEM,
+  CHAT_SYSTEM,
   formatLibrary,
+  formatWeekOpenings,
   formatGenerateUser,
   formatSwapUser,
   PROPOSE_WEEK_TOOL,
@@ -63,6 +65,33 @@ export async function acceptProposals(start: string, proposals: Proposal[]): Pro
 
   await autoFillLunches(start); // fill lunch slots from the new spare servings
   revalidatePath(`/week/${start}`);
+}
+
+// ---- Brainstorm chat --------------------------------------------------------
+
+export async function planChat(
+  start: string,
+  history: ChatMessage[],
+): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
+  await requireAuth();
+  if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
+  const messages = (history ?? [])
+    .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
+    .slice(-12); // keep the last few turns
+  if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+    return { ok: false, error: "Say something first." };
+  }
+  try {
+    const ctx = await gatherPlanningContext(start);
+    const reply = await chatComplete({
+      system: `${CHAT_SYSTEM}\n\n${formatWeekOpenings(ctx)}`,
+      cachedContext: formatLibrary(ctx),
+      messages,
+    });
+    return { ok: true, reply: reply || "…" };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
 }
 
 // ---- Charity's Swap ---------------------------------------------------------

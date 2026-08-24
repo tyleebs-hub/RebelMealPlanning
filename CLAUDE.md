@@ -298,6 +298,10 @@ coverage. Nothing an AI produced becomes a real cook event without a tap.
 - **Charity's Swap** (`swapSlot`/`applySwap`): a swap control on filled dinner slots (week
   page and vote page) returns 3 alternatives; picking one replaces the slot and re-runs
   auto-fill to keep coverage intact.
+- **Meal-ideas chat** (`planChat`): a collapsible brainstorm chat on the week view. Given
+  the week's open slots + library + preferences, it riffs on freeform prompts ("sirloin's
+  on sale, ideas?") with concrete dinner/lunch ideas mapped to open days. Advisory only —
+  it doesn't change the plan. Multi-turn, client-side conversation state, plain-text replies.
 
 Engine lives in `src/lib/ai/` (client, context, prompt, validate). Context = plannable
 library + last 3 weeks of cook history + current week state, assembled server-side from
