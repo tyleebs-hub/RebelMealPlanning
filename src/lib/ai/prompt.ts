@@ -104,7 +104,7 @@ ${lockedCooksText(ctx)}
 RECENT HISTORY (avoid repeating):
 ${historyText(ctx)}
 
-Return exactly 3 options, each a recipe_id + multiplier + one short line on why it fits. If none can hold the lunch coverage, still return 3 good ${meal} options and set coverage_note to explain the lunch gap.`;
+Return exactly 3 DIFFERENT options (never re-propose the current dish${currentTitle ? ` "${currentTitle}"` : ""}, and don't repeat a recipe already locked in this week), each a recipe_id + multiplier + one short line on why it fits. If none can hold the lunch coverage, still return 3 good ${meal} options and set coverage_note to explain the lunch gap.`;
 }
 
 // ---- tool schemas -----------------------------------------------------------
@@ -128,7 +128,7 @@ export const PROPOSE_WEEK_TOOL: ToolDef = {
             recipe_id: { type: "string", description: "Exact recipe id from the library." },
             day: { type: "string", enum: [...DAYS] },
             kind: { type: "string", enum: ["dinner", "prep"] },
-            multiplier: { type: "integer", minimum: 1, maximum: 8 },
+            multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
             rationale: { type: "string", description: "One short line." },
           },
         },
@@ -147,15 +147,14 @@ export const PROPOSE_SWAPS_TOOL: ToolDef = {
     properties: {
       options: {
         type: "array",
-        minItems: 3,
-        maxItems: 3,
+        description: "Exactly 3 options.",
         items: {
           type: "object",
           additionalProperties: false,
           required: ["recipe_id", "multiplier", "rationale"],
           properties: {
             recipe_id: { type: "string" },
-            multiplier: { type: "integer", minimum: 1, maximum: 8 },
+            multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
             rationale: { type: "string" },
           },
         },
