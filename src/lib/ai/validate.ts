@@ -74,6 +74,54 @@ export function validateWeekPlan(input: unknown, ctx: PlanningContext): Validate
   return { ok: true, value: { summary: obj.summary, proposals, coverage: estimateCoverage(ctx, proposals) } };
 }
 
+export type ChatMeal = {
+  id: string;
+  title: string;
+  recipeId?: string;
+  day: Day;
+  meal: "dinner" | "lunch";
+  multiplier: number;
+  isNew: boolean;
+  reheatsWell?: boolean;
+  ingredients?: string[];
+  steps?: string[];
+};
+
+// Parse the suggest_meals tool output into actionable, validated chat meals.
+export function parseChatMeals(toolInput: unknown, ctx: PlanningContext): ChatMeal[] {
+  if (!toolInput || typeof toolInput !== "object") return [];
+  const meals = (toolInput as { meals?: unknown }).meals;
+  if (!Array.isArray(meals)) return [];
+  const strArr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined);
+  const out: ChatMeal[] = [];
+  meals.forEach((m0, i) => {
+    const m = m0 as Record<string, unknown>;
+    if (!isDay(m.day) || (m.meal !== "dinner" && m.meal !== "lunch")) return;
+    if (m.day === "fri" && m.meal === "dinner") return; // pizza night
+    const mult = intInRange(m.multiplier) ? (m.multiplier as number) : 1;
+    const rid = typeof m.recipe_id === "string" ? m.recipe_id : undefined;
+    const lib = rid ? ctx.libraryById.get(rid) : undefined;
+    if (lib) {
+      out.push({ id: `m${i}`, title: lib.title, recipeId: lib.id, day: m.day, meal: m.meal, multiplier: mult, isNew: false });
+    } else {
+      const title = typeof m.title === "string" ? m.title.trim() : "";
+      if (!title) return;
+      out.push({
+        id: `m${i}`,
+        title,
+        day: m.day,
+        meal: m.meal,
+        multiplier: mult,
+        isNew: true,
+        reheatsWell: typeof m.reheats_well === "boolean" ? m.reheats_well : undefined,
+        ingredients: strArr(m.ingredients),
+        steps: strArr(m.steps),
+      });
+    }
+  });
+  return out;
+}
+
 export type SwapOption = { recipeId: string; title: string; multiplier: number; rationale: string };
 export type Swaps = { options: SwapOption[]; coverageNote?: string };
 

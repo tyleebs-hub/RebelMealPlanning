@@ -119,7 +119,7 @@ Respect the family rules:
 - HARD EXCLUDES: large salads as a main, Greek yogurt, cottage cheese, ghee, heavily processed convenience food.
 - Weekly targets: ${TARGET_DINNERS} dinners, ${TARGET_LUNCHES * LUNCH_SERVINGS} lunch portions. Only recipes that reheat well should feed lunches.
 
-You only suggest ideas — you don't change the plan. Tyler adds what he likes using the app.`;
+When you propose specific dinners or lunches Tyler could drop into an open slot, ALSO call the suggest_meals tool with them as structured actions — each with a day (an OPEN slot, never Friday dinner), a meal, and either the exact library recipe_id (if it's an existing recipe) or, for a NEW dish, a short ingredients list, a few steps, and whether it reheats_well. Keep your text reply conversational and readable; the tool is only for the "Add" buttons, so don't describe the tool. Only include meals you'd genuinely recommend — it's fine to call it with fewer meals than you discuss, or not at all for a general question.`;
 
 export function formatWeekOpenings(ctx: PlanningContext): string {
   const byKey = new Map(ctx.slots.map((s) => [`${s.day}|${s.meal}`, s]));
@@ -156,6 +156,34 @@ export const PROPOSE_WEEK_TOOL: ToolDef = {
             kind: { type: "string", enum: ["dinner", "prep"] },
             multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
             rationale: { type: "string", description: "One short line." },
+          },
+        },
+      },
+    },
+  },
+};
+
+export const SUGGEST_MEALS_TOOL: ToolDef = {
+  name: "suggest_meals",
+  description: "Surface the specific meals you're recommending as add-to-week actions.",
+  input_schema: {
+    type: "object",
+    required: ["meals"],
+    properties: {
+      meals: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["title", "day", "meal"],
+          properties: {
+            title: { type: "string" },
+            recipe_id: { type: "string", description: "Exact library id, if this is an existing recipe." },
+            day: { type: "string", enum: [...DAYS] },
+            meal: { type: "string", enum: ["dinner", "lunch"] },
+            multiplier: { type: "integer", description: "Batch multiplier 1-8 (default 1)." },
+            reheats_well: { type: "boolean", description: "For a new dish: does it reheat for lunches?" },
+            ingredients: { type: "array", items: { type: "string" }, description: "New dish only: one ingredient per item." },
+            steps: { type: "array", items: { type: "string" }, description: "New dish only: brief steps." },
           },
         },
       },

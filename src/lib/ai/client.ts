@@ -63,25 +63,30 @@ export async function forcedTool<T>(opts: {
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-// Plain conversational completion (no tool). System + cached context, then the
-// conversation. Returns the assistant's text.
+// Conversational completion. System + cached context, then the conversation.
+// If a (non-forced) tool is passed, the model may also emit structured actions;
+// returns the assistant text plus any tool input (null if it didn't call it).
 export async function chatComplete(opts: {
   system: string;
   cachedContext: string;
   messages: ChatMessage[];
-}): Promise<string> {
+  tool?: ToolDef;
+}): Promise<{ text: string; toolInput: unknown | null }> {
   const res = await client().messages.create({
     model: AI_MODEL,
-    max_tokens: 1024,
+    max_tokens: 1500,
     system: [
       { type: "text", text: opts.system },
       { type: "text", text: opts.cachedContext, cache_control: { type: "ephemeral" } },
     ],
     messages: opts.messages,
+    ...(opts.tool ? { tools: [opts.tool as unknown as Anthropic.Tool] } : {}),
   });
-  return res.content
+  const text = res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("\n")
     .trim();
+  const toolBlock = res.content.find((b) => b.type === "tool_use");
+  return { text, toolInput: toolBlock && toolBlock.type === "tool_use" ? toolBlock.input : null };
 }

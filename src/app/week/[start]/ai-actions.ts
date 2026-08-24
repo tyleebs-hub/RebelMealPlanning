@@ -15,8 +15,19 @@ import {
   formatSwapUser,
   PROPOSE_WEEK_TOOL,
   PROPOSE_SWAPS_TOOL,
+  SUGGEST_MEALS_TOOL,
 } from "@/lib/ai/prompt";
-import { validateWeekPlan, validateSwaps, type Proposal, type WeekPlan, type Swaps } from "@/lib/ai/validate";
+import {
+  validateWeekPlan,
+  validateSwaps,
+  parseChatMeals,
+  type Proposal,
+  type WeekPlan,
+  type Swaps,
+  type ChatMeal,
+} from "@/lib/ai/validate";
+import { parseIngredient } from "@/lib/ingredient-parse";
+import { inferAisleAndStaple } from "@/lib/aisle";
 import type { Day, Meal } from "@/lib/week";
 import { autoFillLunches } from "./actions";
 
@@ -72,7 +83,7 @@ export async function acceptProposals(start: string, proposals: Proposal[]): Pro
 export async function planChat(
   start: string,
   history: ChatMessage[],
-): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; reply: string; suggestions: ChatMeal[] } | { ok: false; error: string }> {
   await requireAuth();
   if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
   const messages = (history ?? [])
@@ -83,12 +94,82 @@ export async function planChat(
   }
   try {
     const ctx = await gatherPlanningContext(start);
-    const reply = await chatComplete({
+    const { text, toolInput } = await chatComplete({
       system: `${CHAT_SYSTEM}\n\n${formatWeekOpenings(ctx)}`,
       cachedContext: formatLibrary(ctx),
       messages,
+      tool: SUGGEST_MEALS_TOOL,
     });
-    return { ok: true, reply: reply || "…" };
+    return { ok: true, reply: text || "…", suggestions: parseChatMeals(toolInput, ctx) };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+// Commit one chat-suggested meal: a library recipe → cook that day; a new dish →
+// save it to the library (ingredients + steps + inferred aisles) then cook it.
+export async function addChatMeal(
+  start: string,
+  meal: ChatMeal,
+): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
+  await requireAuth();
+  if (!meal || (meal.meal !== "dinner" && meal.meal !== "lunch")) return { ok: false, error: "Bad meal." };
+  try {
+    const sb = getSupabaseAdmin();
+    const weekId = await weekIdForStart(sb, start);
+
+    let recipeId = meal.recipeId;
+    if (!recipeId) {
+      const title = (meal.title || "").trim();
+      if (!title) return { ok: false, error: "No recipe to add." };
+      const { data: rec, error } = await sb
+        .from("recipes")
+        .insert({
+          title,
+          meal_types: [meal.meal],
+          reheats_well: meal.reheatsWell ?? meal.meal === "lunch",
+          base_servings: 4,
+          source_name: "AI idea",
+        })
+        .select("id")
+        .single();
+      if (error || !rec) return { ok: false, error: "Could not save the recipe." };
+      recipeId = rec.id as string;
+
+      const ingLines = (meal.ingredients ?? []).map((s) => s.trim()).filter(Boolean);
+      if (ingLines.length) {
+        await sb.from("ingredients").insert(
+          ingLines.map((line, i) => {
+            const p = parseIngredient(line);
+            const { aisle, staple } = inferAisleAndStaple(p.item);
+            return { recipe_id: recipeId, sort_order: i + 1, qty: p.qty, unit: p.unit, item: p.item, raw_text: p.raw_text, aisle, is_pantry_staple: staple };
+          }),
+        );
+      }
+      const stepLines = (meal.steps ?? []).map((s) => s.trim()).filter(Boolean);
+      if (stepLines.length) {
+        await sb.from("steps").insert(stepLines.map((body, i) => ({ recipe_id: recipeId, sort_order: i + 1, body })));
+      }
+    } else {
+      const { data } = await sb.from("recipes").select("id").eq("id", recipeId).maybeSingle();
+      if (!data) return { ok: false, error: "Recipe not found." };
+    }
+
+    const kind = meal.meal === "dinner" ? "dinner" : "prep";
+    const { data: ce } = await sb
+      .from("cook_events")
+      .insert({ week_id: weekId, recipe_id: recipeId, multiplier: clampMult(meal.multiplier), day: meal.day, kind })
+      .select("id")
+      .single();
+    if (ce) {
+      await sb.from("slots").upsert(
+        { week_id: weekId, day: meal.day, meal: meal.meal, fill_type: "cook", cook_event_id: ce.id, out_label: null, sauce: null },
+        { onConflict: "week_id,day,meal" },
+      );
+    }
+    await autoFillLunches(start);
+    revalidatePath(`/week/${start}`);
+    return { ok: true, title: meal.title };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
