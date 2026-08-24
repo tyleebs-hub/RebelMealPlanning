@@ -84,6 +84,7 @@ export type CookRecipe = {
   meal_types: MealType[];
   active_min: number | null;
   total_min: number | null;
+  flat_cost: number | null;
 };
 
 export type CookEvent = {

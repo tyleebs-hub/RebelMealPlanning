@@ -265,6 +265,11 @@ cook cost     = recipe cost * multiplier
 cost/serving  = cook cost / produced
 ```
 
+A recipe may carry a **`flat_cost`** (batch cost) that wins over the ingredient math.
+This powers **custom plans**: on any slot, enter a name + cost + servings (e.g. Domino's,
+$25, 6 servings) — it's saved as a reheatable "Custom" recipe with that flat cost and
+cooked, so leftovers feed lunches and the cost lands in the weekly total like any cook.
+
 The weekly readout splits spend the way coverage does. A cook's cost is fixed once you
 buy for it; assigning its servings to more lunch slots does not add cost, it spreads the
 same cost across more meals and lowers cost per meal. That is the interaction: raise a

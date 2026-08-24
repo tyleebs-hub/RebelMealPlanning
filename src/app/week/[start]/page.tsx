@@ -75,7 +75,15 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     for (const r of (ingRows ?? []) as { recipe_id: string; qty: number | null; unit: string | null; item: string }[]) {
       (byRecipe.get(r.recipe_id) ?? byRecipe.set(r.recipe_id, []).get(r.recipe_id)!).push(r);
     }
-    for (const id of plannedIds) recipeCostById.set(id, recipeCost(byRecipe.get(id) ?? [], prices));
+    // A custom plan's flat_cost wins over the ingredient math.
+    const flatByRecipe = new Map(cookEvents.map((ce) => [ce.recipe_id, ce.recipe.flat_cost]));
+    for (const id of plannedIds) {
+      const flat = flatByRecipe.get(id);
+      recipeCostById.set(
+        id,
+        flat != null ? { cost: flat, unpriced: 0, total: 0 } : recipeCost(byRecipe.get(id) ?? [], prices),
+      );
+    }
   }
   const cost = weeklyCost(cookEvents, slots, recipeCostById);
 

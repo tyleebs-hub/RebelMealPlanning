@@ -28,6 +28,7 @@ export type Recipe = {
   reheats_well: boolean;
   kids_like: boolean;
   is_component: boolean;
+  flat_cost: number | null;
   notes: string | null;
   last_made_at: string | null;
   created_at: string;

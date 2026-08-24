@@ -4,7 +4,7 @@ import type { CookEvent, Slot } from "@/lib/week";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const RECIPE_COLS =
-  "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min";
+  "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min,flat_cost";
 
 // Get or create the week row for a Monday start date. Idempotent. On first
 // creation, seed the default Friday dinner: Pizza / Movie Night (still fully

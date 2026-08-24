@@ -65,7 +65,7 @@ export default async function RecipeDetailPage({
   const r = recipe as Recipe;
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
-  const rc = recipeCost(ings, await loadPrices());
+  const rc = r.flat_cost != null ? { cost: r.flat_cost, unpriced: 0, total: 0 } : recipeCost(ings, await loadPrices());
   const jsonLd = recipeJsonLd(r, ings, stps);
   const imageUrl = publicImageUrl(r.image_path);
 

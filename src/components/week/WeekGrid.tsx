@@ -15,7 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { MultiplierStepper } from "./MultiplierStepper";
-import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent, moveSlot } from "@/app/week/[start]/actions";
+import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent, moveSlot, addCustomMeal } from "@/app/week/[start]/actions";
 import type { Hue } from "@/lib/hues";
 import { RecipeFilterBar } from "@/components/RecipeFilterBar";
 import { SwapSheet } from "@/components/week/SwapSheet";
@@ -303,7 +303,16 @@ function PickerSheet({
   // Opening +dinner / +lunch pre-selects that meal filter; the cook can widen it.
   const [filters, setFilters] = useState<RecipeFilters>({ ...EMPTY_FILTERS, meals: [meal] });
   const [sauce, setSauce] = useState("");
+  const [cName, setCName] = useState("");
+  const [cCost, setCCost] = useState("");
+  const [cServ, setCServ] = useState(meal === "dinner" ? "4" : "2");
   const [, startT] = useTransition();
+
+  const doCustom = () => {
+    if (!cName.trim()) return;
+    startT(() => addCustomMeal(start, day as never, meal, cName.trim(), parseFloat(cCost) || 0, parseInt(cServ) || 1));
+    onClose();
+  };
 
   const list = useMemo(
     () =>
@@ -400,6 +409,29 @@ function PickerSheet({
               ))}
               {filled && <button onClick={doClear} className={`${btn} text-[var(--clay-bg)]`}>Clear slot</button>}
             </div>
+          </div>
+
+          <div>
+            <div className={`${EYEBROW} mb-2`}>Custom plan</div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={cName}
+                onChange={(e) => setCName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && doCustom()}
+                placeholder="e.g. Domino's"
+                className="min-w-0 flex-1 rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-1 text-sm">
+                <span className="text-[var(--ink2)]">$</span>
+                <input value={cCost} onChange={(e) => setCCost(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="25" className="w-14 rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm" />
+              </div>
+              <div className="flex items-center gap-1 text-sm">
+                <input value={cServ} onChange={(e) => setCServ(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="w-12 rounded-lg border border-[var(--rule)] bg-[var(--paper)] px-2 py-2 text-sm" />
+                <span className="text-[var(--ink2)]">servings</span>
+              </div>
+              <button onClick={doCustom} disabled={!cName.trim()} className="shrink-0 rounded-lg bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--paper)] hover:opacity-90 disabled:opacity-50">Add</button>
+            </div>
+            <p className="mt-1 font-mono text-[10px] text-[var(--ink2)]">Extra servings beyond {meal === "dinner" ? "dinner (4)" : "this lunch (2)"} become leftovers you can put on a lunch.</p>
           </div>
 
           <div>

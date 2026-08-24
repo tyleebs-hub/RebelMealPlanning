@@ -86,6 +86,62 @@ export async function pickCook(start: string, day: Day, meal: Meal, recipeId: st
   revalidate(start);
 }
 
+// Custom plan on a slot: a name + flat cost + servings (e.g. Dominos, $25, 6).
+// Modeled as a lightweight reheatable recipe (find-or-create by name) so its
+// leftovers can feed lunches and its cost counts in the weekly total.
+export async function addCustomMeal(
+  start: string,
+  day: Day,
+  meal: Meal,
+  name: string,
+  cost: number,
+  servings: number,
+) {
+  await requireAuth();
+  const title = String(name || "").trim();
+  if (!title) return;
+  const sb = getSupabaseAdmin();
+  const weekId = await weekIdForStart(sb, start);
+  const flat = Math.max(0, Number(cost) || 0);
+  const base = Math.max(1, Math.round(Number(servings) || 1));
+
+  const { data: existing } = await sb
+    .from("recipes")
+    .select("id,meal_types")
+    .eq("title", title)
+    .eq("source_name", "Custom")
+    .maybeSingle();
+  let recipeId: string;
+  if (existing) {
+    recipeId = existing.id as string;
+    const types = new Set([...(((existing.meal_types as string[]) ?? [])), meal]);
+    await sb.from("recipes").update({ flat_cost: flat, base_servings: base, reheats_well: true, meal_types: [...types] }).eq("id", recipeId);
+  } else {
+    const { data: rec } = await sb
+      .from("recipes")
+      .insert({ title, meal_types: [meal], base_servings: base, flat_cost: flat, reheats_well: true, source_name: "Custom" })
+      .select("id")
+      .single();
+    if (!rec) return;
+    recipeId = rec.id as string;
+  }
+
+  const kind = meal === "dinner" ? "dinner" : "prep";
+  const { data: ce } = await sb
+    .from("cook_events")
+    .insert({ week_id: weekId, recipe_id: recipeId, multiplier: 1, day, kind })
+    .select("id")
+    .single();
+  if (ce) {
+    await sb.from("slots").upsert(
+      { week_id: weekId, day, meal, fill_type: "cook", cook_event_id: ce.id, out_label: null, sauce: null },
+      { onConflict: "week_id,day,meal" },
+    );
+  }
+  await autoFillLunches(start);
+  revalidate(start);
+}
+
 export async function setMultiplier(start: string, cookEventId: string, multiplier: number) {
   await requireAuth();
   const sb = getSupabaseAdmin();
