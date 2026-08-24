@@ -146,3 +146,16 @@ export function computeCoverage(slots: Slot[]): Coverage {
 }
 
 export const SAUCE_ROTATION = ["chimichurri", "teriyaki", "chipotle mayo", "pesto"];
+
+// A cook's leftovers can't be eaten before it's made. A dinner cooked in the
+// evening is available the NEXT day's lunch onward; a prep batch is available
+// from its own day. Returns the earliest lunch day-index the cook can feed
+// (0 = available all week, e.g. a cook with no day set).
+export function earliestLunchIndex(cook: { day: Day | null; kind: "dinner" | "prep" }): number {
+  if (!cook.day) return 0;
+  const d = DAYS.indexOf(cook.day);
+  if (d < 0) return 0;
+  return d + (cook.kind === "dinner" ? 1 : 0);
+}
+
+export const dayIndex = (d: Day): number => DAYS.indexOf(d);

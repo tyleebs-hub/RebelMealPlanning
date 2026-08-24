@@ -7,7 +7,7 @@ import { weekIdForStart, loadWeek } from "@/lib/week-data";
 import { currentWho, requireAuth } from "@/lib/session";
 import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
-import { DAYS, type Day, type Meal } from "@/lib/week";
+import { DAYS, earliestLunchIndex, type Day, type Meal } from "@/lib/week";
 import { fetchRecipeFromUrl } from "@/app/recipes/new/actions";
 import { parseIngredient } from "@/lib/ingredient-parse";
 
@@ -177,7 +177,7 @@ export async function autoFillLunches(start: string) {
   const [{ data: cookEvents }, { data: slots }] = await Promise.all([
     sb
       .from("cook_events")
-      .select("id,multiplier,kind,recipe:recipes(base_servings,reheats_well)")
+      .select("id,multiplier,kind,day,recipe:recipes(base_servings,reheats_well)")
       .eq("week_id", weekId),
     sb.from("slots").select("day,meal,fill_type,cook_event_id").eq("week_id", weekId),
   ]);
@@ -186,8 +186,12 @@ export async function autoFillLunches(start: string) {
     id: string;
     multiplier: number;
     kind: string;
+    day: Day | null;
     recipe: { base_servings: number; reheats_well: boolean };
   }[];
+  const earliestById = new Map(
+    events.map((e) => [e.id, earliestLunchIndex({ day: e.day, kind: e.kind === "prep" ? "prep" : "dinner" })]),
+  );
   const allSlots = (slots ?? []) as { day: string; meal: string; fill_type: string | null; cook_event_id: string | null }[];
 
   // Running available per event.
@@ -217,13 +221,16 @@ export async function autoFillLunches(start: string) {
     cook_event_id: string;
   }[] = [];
 
-  for (const day of DAYS) {
+  for (let li = 0; li < DAYS.length; li++) {
+    const day = DAYS[li];
     if (lunchFilled.has(day)) continue;
-    // pick reheatable event with the most available >= LUNCH_SERVINGS
+    // pick reheatable event with the most available >= LUNCH_SERVINGS that is
+    // already cooked by this day (a leftover can't precede its cook).
     let best: string | null = null;
     let bestAvail = LUNCH_SERVINGS - 1;
     for (const [id, avail] of available) {
       if (!reheatable.has(id)) continue;
+      if ((earliestById.get(id) ?? 0) > li) continue; // not cooked yet
       if (avail > bestAvail) {
         best = id;
         bestAvail = avail;

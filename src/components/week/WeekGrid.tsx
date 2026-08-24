@@ -8,7 +8,7 @@ import { RecipeFilterBar } from "@/components/RecipeFilterBar";
 import { SwapSheet } from "@/components/week/SwapSheet";
 import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-filter";
 import type { MealType } from "@/lib/types";
-import type { Day } from "@/lib/week";
+import { dayIndex, earliestLunchIndex, type Day } from "@/lib/week";
 
 export type SlotView = {
   fill: "cook" | "leftover" | "out" | "empty";
@@ -20,10 +20,11 @@ export type SlotView = {
   sauce?: string | null;
   fromDay?: string;
   short?: boolean;
+  early?: boolean;
   outLabel?: string;
 };
 export type DayView = { day: string; label: string; dateLabel: string; dinner: SlotView; lunch: SlotView };
-export type PickerCook = { id: string; title: string; day: string; available: number; reheats: boolean; hue: Hue };
+export type PickerCook = { id: string; title: string; day: string; kind: "dinner" | "prep"; available: number; reheats: boolean; hue: Hue };
 export type PickerRecipe = {
   id: string;
   title: string;
@@ -163,8 +164,12 @@ function Slot({
       >
         <div className={EYEBROW}>{label} · leftover</div>
         <div className="mt-0.5 line-clamp-2 text-sm font-semibold leading-tight">{view.title}</div>
-        <div className="mt-auto line-clamp-2 font-mono text-[11px]" style={{ color: view.short ? "var(--clay-bg)" : view.hue?.text }}>
-          {view.short ? "not enough cooked" : `from ${view.fromDay} · 2 portions${view.sauce ? ` · ${view.sauce}` : ""}`}
+        <div className="mt-auto line-clamp-2 font-mono text-[11px]" style={{ color: view.short || view.early ? "var(--clay-bg)" : view.hue?.text }}>
+          {view.early
+            ? `⚠ cooked ${view.fromDay} — not made yet`
+            : view.short
+              ? "not enough cooked"
+              : `from ${view.fromDay} · 2 portions${view.sauce ? ` · ${view.sauce}` : ""}`}
         </div>
         {swapBtn}
         <ClearBtn onClick={clear} />
@@ -233,7 +238,14 @@ function PickerSheet({
     [recipes, filters],
   );
 
-  const leftoverPool = cooks.filter((c) => c.available >= 2 && c.reheats);
+  // Only offer leftovers from cooks already made by this lunch day.
+  const dayIdx = dayIndex(day as Day);
+  const leftoverPool = cooks.filter(
+    (c) =>
+      c.available >= 2 &&
+      c.reheats &&
+      earliestLunchIndex({ day: (c.day || null) as Day | null, kind: c.kind }) <= dayIdx,
+  );
 
   const doCook = (recipeId: string) => {
     startT(() => pickCook(start, day as never, meal, recipeId));

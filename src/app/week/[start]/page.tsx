@@ -10,6 +10,8 @@ import {
   computeLedger,
   dayLabel,
   dayDateLabel,
+  dayIndex,
+  earliestLunchIndex,
   formatWeekRange,
   isMonday,
   mondayOfToday,
@@ -103,6 +105,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       };
     }
     const led = ce ? ledgerById.get(ce.id) : undefined;
+    const early = ce ? dayIndex(slot.day) < earliestLunchIndex({ day: ce.day, kind: ce.kind }) : false;
     return {
       fill: "leftover",
       title: ce?.recipe.title,
@@ -110,6 +113,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       sauce: slot.sauce,
       fromDay: ce?.day ? dayLabel(ce.day) : "prep",
       short: (led?.available ?? 0) < 0,
+      early,
     };
   };
 
@@ -125,6 +129,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     id: ce.id,
     title: ce.recipe.title,
     day: ce.day ?? "",
+    kind: ce.kind,
     available: ledgerById.get(ce.id)?.available ?? 0,
     reheats: ce.recipe.reheats_well,
     hue: hueMap.get(ce.id)!,
