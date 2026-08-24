@@ -159,6 +159,74 @@ export async function setSauce(start: string, slotId: string, sauce: string) {
   revalidate(start);
 }
 
+// Drag-and-drop: move a slot's content to another day in the same row (dinner or
+// lunch). Swaps if the target is filled. Moving a cook updates its cook_event.day
+// too. A leftover lunch can't be dropped before the cook that makes it.
+export async function moveSlot(
+  start: string,
+  from: { day: Day; meal: Meal },
+  to: { day: Day; meal: Meal },
+) {
+  await requireAuth();
+  if (from.meal !== to.meal || from.day === to.day) return;
+  const sb = getSupabaseAdmin();
+  const weekId = await weekIdForStart(sb, start);
+
+  const { data: rows } = await sb
+    .from("slots")
+    .select("day,fill_type,cook_event_id,out_label,sauce")
+    .eq("week_id", weekId)
+    .eq("meal", from.meal)
+    .in("day", [from.day, to.day]);
+  type SlotRow = { day: string; fill_type: string | null; cook_event_id: string | null; out_label: string | null; sauce: string | null };
+  const list = (rows ?? []) as SlotRow[];
+  const src = list.find((s) => s.day === from.day);
+  const dst = list.find((s) => s.day === to.day);
+  if (!src?.fill_type) return; // nothing to move
+
+  // A leftover can't land before its cook is made.
+  const eligibleOn = async (row: SlotRow | undefined, targetDay: Day): Promise<boolean> => {
+    if (!row || row.fill_type !== "leftover" || !row.cook_event_id) return true;
+    const { data: ce } = await sb.from("cook_events").select("day,kind").eq("id", row.cook_event_id).maybeSingle();
+    if (!ce) return true;
+    const idx = earliestLunchIndex({ day: (ce.day ?? null) as Day | null, kind: ce.kind === "prep" ? "prep" : "dinner" });
+    return DAYS.indexOf(targetDay) >= idx;
+  };
+  if (from.meal === "lunch") {
+    if (!(await eligibleOn(src, to.day))) return;
+    if (dst?.fill_type && !(await eligibleOn(dst, from.day))) return;
+  }
+
+  const place = async (content: SlotRow, day: Day) => {
+    await sb.from("slots").upsert(
+      {
+        week_id: weekId,
+        day,
+        meal: from.meal,
+        fill_type: content.fill_type,
+        cook_event_id: content.cook_event_id,
+        out_label: content.out_label,
+        sauce: content.sauce,
+      },
+      { onConflict: "week_id,day,meal" },
+    );
+    if (content.fill_type === "cook" && content.cook_event_id) {
+      await sb.from("cook_events").update({ day }).eq("id", content.cook_event_id);
+    }
+  };
+
+  const srcCopy = { ...src };
+  if (dst?.fill_type) {
+    const dstCopy = { ...dst };
+    await place(srcCopy, to.day);
+    await place(dstCopy, from.day);
+  } else {
+    await place(srcCopy, to.day);
+    await sb.from("slots").delete().eq("week_id", weekId).eq("day", from.day).eq("meal", from.meal);
+  }
+  revalidate(start);
+}
+
 export async function clearSlot(start: string, day: Day, meal: Meal) {
   await requireAuth();
   const sb = getSupabaseAdmin();

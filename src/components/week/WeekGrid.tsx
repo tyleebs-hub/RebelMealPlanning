@@ -1,8 +1,21 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { MultiplierStepper } from "./MultiplierStepper";
-import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent } from "@/app/week/[start]/actions";
+import { pickCook, assignLeftover, setOut, clearSlot, deleteCookEvent, moveSlot } from "@/app/week/[start]/actions";
 import type { Hue } from "@/lib/hues";
 import { RecipeFilterBar } from "@/components/RecipeFilterBar";
 import { SwapSheet } from "@/components/week/SwapSheet";
@@ -55,9 +68,30 @@ export function WeekGrid({
   aiEnabled?: boolean;
 }) {
   const [active, setActive] = useState<{ day: string; meal: "dinner" | "lunch" } | null>(null);
+  const [activeMeal, setActiveMeal] = useState<"dinner" | "lunch" | null>(null);
+  const [, startMove] = useTransition();
+  const router = useRouter();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+  );
+
+  const onDragStart = (e: DragStartEvent) =>
+    setActiveMeal((e.active.data.current as { meal?: "dinner" | "lunch" })?.meal ?? null);
+  const onDragEnd = (e: DragEndEvent) => {
+    setActiveMeal(null);
+    const from = e.active.data.current as { day: Day; meal: "dinner" | "lunch" } | undefined;
+    const to = e.over?.data.current as { day: Day; meal: "dinner" | "lunch" } | undefined;
+    if (!from || !to || from.meal !== to.meal || from.day === to.day) return;
+    startMove(async () => {
+      await moveSlot(start, from, to);
+      router.refresh();
+    });
+  };
 
   return (
     <>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveMeal(null)}>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
         {days.map((d) => (
           <div key={d.day} className="rounded-xl border border-[var(--rule)] bg-[var(--card)] p-3">
@@ -66,12 +100,13 @@ export function WeekGrid({
               <span className={`font-mono ${EYEBROW}`}>{d.dateLabel}</span>
             </div>
             <div className="mt-2.5 flex flex-col gap-2.5">
-              <Slot start={start} day={d.day} meal="lunch" view={d.lunch} aiEnabled={aiEnabled} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
-              <Slot start={start} day={d.day} meal="dinner" view={d.dinner} aiEnabled={aiEnabled} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
+              <SlotCell start={start} day={d.day} meal="lunch" view={d.lunch} aiEnabled={aiEnabled} activeMeal={activeMeal} onOpen={() => setActive({ day: d.day, meal: "lunch" })} />
+              <SlotCell start={start} day={d.day} meal="dinner" view={d.dinner} aiEnabled={aiEnabled} activeMeal={activeMeal} onOpen={() => setActive({ day: d.day, meal: "dinner" })} />
             </div>
           </div>
         ))}
       </div>
+      </DndContext>
 
       {active && (
         <PickerSheet
@@ -90,6 +125,43 @@ export function WeekGrid({
         />
       )}
     </>
+  );
+}
+
+// Wraps a Slot to make it draggable (when filled) and a drop target. Same-meal
+// drops only — the other row's slots are disabled while dragging.
+function SlotCell({
+  activeMeal,
+  ...props
+}: {
+  start: string;
+  day: string;
+  meal: "dinner" | "lunch";
+  view: SlotView;
+  onOpen: () => void;
+  aiEnabled: boolean;
+  activeMeal: "dinner" | "lunch" | null;
+}) {
+  const { day, meal, view } = props;
+  const draggable = view.fill !== "empty";
+  const drag = useDraggable({ id: `drag:${day}:${meal}`, data: { day, meal }, disabled: !draggable });
+  const drop = useDroppable({ id: `drop:${day}:${meal}`, data: { day, meal }, disabled: activeMeal !== null && activeMeal !== meal });
+  const style = drag.transform
+    ? { transform: `translate(${drag.transform.x}px, ${drag.transform.y}px)` }
+    : undefined;
+  const setRefs = (el: HTMLElement | null) => {
+    drag.setNodeRef(el);
+    drop.setNodeRef(el);
+  };
+  return (
+    <div
+      ref={setRefs}
+      style={style}
+      className={`relative rounded-lg transition-shadow ${drag.isDragging ? "z-50 opacity-60" : ""} ${drop.isOver && !drag.isDragging ? "outline outline-2 outline-offset-1 outline-[var(--go)]" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      {...(draggable ? { ...drag.attributes, ...drag.listeners } : {})}
+    >
+      <Slot {...props} />
+    </div>
   );
 }
 
@@ -187,7 +259,7 @@ function Slot({
       <div className={EYEBROW}>{label} · cook</div>
       <div className="mt-0.5 line-clamp-2 text-sm font-semibold leading-tight">{view.title}</div>
       <div className="font-mono text-[11px]" style={{ color: view.hue?.text }}>{view.produced} servings</div>
-      <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         {view.cookEventId && <MultiplierStepper start={start} cookEventId={view.cookEventId} value={view.multiplier ?? 1} />}
       </div>
       {swapBtn}
@@ -200,6 +272,7 @@ function ClearBtn({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
   return (
     <button
       onClick={onClick}
+      onPointerDown={(e) => e.stopPropagation()}
       aria-label="Clear slot"
       className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--clay-bg)]"
     >

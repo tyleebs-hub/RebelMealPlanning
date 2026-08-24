@@ -58,6 +58,7 @@ export function SwapSheet({
     <>
       <button
         onClick={openSheet}
+        onPointerDown={(e) => e.stopPropagation()}
         className={className ?? "rounded-md border border-[var(--rule)] px-2 py-0.5 text-[11px] text-[var(--ink2)] hover:border-[var(--ink2)] hover:text-[var(--ink)]"}
       >
         {label}
