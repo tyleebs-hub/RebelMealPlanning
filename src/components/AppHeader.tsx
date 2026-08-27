@@ -2,7 +2,7 @@ import Link from "next/link";
 import { mondayOfToday } from "@/lib/week";
 import { logout } from "@/app/logout/action";
 
-type Section = "week" | "recipes" | "grocery" | "vote";
+type Section = "today" | "week" | "recipes" | "grocery" | "vote";
 
 function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
   return (
@@ -34,6 +34,7 @@ export function AppHeader({ active }: { active?: Section }) {
         </Link>
 
         <nav className="flex items-center gap-0">
+          <NavLink href="/today" label="Today" active={active === "today"} />
           <NavLink href="/week" label="Week" active={active === "week"} />
           <NavLink href="/recipes" label="Recipes" active={active === "recipes"} />
           <NavLink href={grocery} label="Grocery" active={active === "grocery"} />

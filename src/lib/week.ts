@@ -51,6 +51,26 @@ export function isMonday(iso: string): boolean {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 1;
 }
 
+export function todayIso(): string {
+  return localIso(new Date());
+}
+
+// The Monday (week start) that contains a given date.
+export function mondayOf(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay(); // 0=Sun..6=Sat
+  dt.setUTCDate(dt.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  return dt.toISOString().slice(0, 10);
+}
+
+// The day-of-week name (mon..sun) for a date.
+export function dayNameOf(iso: string): Day {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return DAYS[dow === 0 ? 6 : dow - 1];
+}
+
 export function dateForDay(mondayIso: string, day: Day): string {
   return addDaysIso(mondayIso, DAYS.indexOf(day));
 }
@@ -70,6 +90,10 @@ export function formatWeekRange(mondayIso: string): string {
 
 export function dayDateLabel(mondayIso: string, day: Day): string {
   return fmtShort(dateForDay(mondayIso, day));
+}
+
+export function dateLabelIso(iso: string): string {
+  return fmtShort(iso);
 }
 
 // ---- rows -------------------------------------------------------------------
