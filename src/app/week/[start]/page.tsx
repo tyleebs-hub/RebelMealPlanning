@@ -110,6 +110,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         multiplier: ce?.multiplier,
         produced: ce ? ce.recipe.base_servings * ce.multiplier : 0,
         cookEventId: ce?.id,
+        recipeId: ce?.recipe_id,
       };
     }
     const led = ce ? ledgerById.get(ce.id) : undefined;
@@ -118,6 +119,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       fill: "leftover",
       title: ce?.recipe.title,
       hue,
+      recipeId: ce?.recipe_id,
       sauce: slot.sauce,
       fromDay: ce?.day ? dayLabel(ce.day) : "prep",
       short: (led?.available ?? 0) < 0,

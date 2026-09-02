@@ -201,13 +201,20 @@ export async function swapSlot(
     } else if (slot?.out_label) {
       currentTitle = slot.out_label;
     }
+    // Don't offer the dishes already used this week (incl. the one being swapped)
+    // as candidates — hiding them prevents the model from re-proposing the current
+    // dish and getting confused.
+    const excludeIds = new Set(ctx.cookEvents.map((c) => c.recipe_id));
     const swaps = await forcedTool({
       system: SYSTEM,
-      cachedContext: formatLibrary(ctx),
+      cachedContext: formatLibrary(ctx, excludeIds),
       userContent: formatSwapUser(ctx, day, meal, currentTitle, lunchesFed, reason),
       tool: PROPOSE_SWAPS_TOOL,
       validate: (input) => validateSwaps(input, ctx),
     });
+    // Safety net: never return an excluded recipe.
+    swaps.options = swaps.options.filter((o) => !excludeIds.has(o.recipeId));
+    if (swaps.options.length === 0) return { ok: false, error: "Couldn't find distinct alternatives — try again." };
     return { ok: true, swaps };
   } catch (e) {
     return { ok: false, error: (e as Error).message };

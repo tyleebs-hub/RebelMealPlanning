@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -30,6 +31,7 @@ export type SlotView = {
   multiplier?: number;
   produced?: number;
   cookEventId?: string;
+  recipeId?: string;
   sauce?: string | null;
   fromDay?: string;
   short?: boolean;
@@ -76,6 +78,12 @@ export function WeekGrid({
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
   );
 
+  const activeView = active
+    ? active.meal === "dinner"
+      ? days.find((d) => d.day === active.day)?.dinner
+      : days.find((d) => d.day === active.day)?.lunch
+    : undefined;
+
   const onDragStart = (e: DragStartEvent) =>
     setActiveMeal((e.active.data.current as { meal?: "dinner" | "lunch" })?.meal ?? null);
   const onDragEnd = (e: DragEndEvent) => {
@@ -113,11 +121,8 @@ export function WeekGrid({
           start={start}
           day={active.day}
           meal={active.meal}
-          filled={
-            (active.meal === "dinner"
-              ? days.find((d) => d.day === active.day)?.dinner
-              : days.find((d) => d.day === active.day)?.lunch)?.fill !== "empty"
-          }
+          filled={activeView ? activeView.fill !== "empty" : false}
+          currentRecipeId={activeView?.recipeId}
           cooks={cooks}
           recipes={recipes}
           sauces={sauces}
@@ -286,6 +291,7 @@ function PickerSheet({
   day,
   meal,
   filled,
+  currentRecipeId,
   cooks,
   recipes,
   sauces,
@@ -295,6 +301,7 @@ function PickerSheet({
   day: string;
   meal: "dinner" | "lunch";
   filled: boolean;
+  currentRecipeId?: string;
   cooks: PickerCook[];
   recipes: PickerRecipe[];
   sauces: string[];
@@ -368,9 +375,16 @@ function PickerSheet({
         className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-[var(--rule)] bg-[var(--card)] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-[var(--rule)] bg-[var(--card)] px-4 py-3">
+        <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-[var(--rule)] bg-[var(--card)] px-4 py-3">
           <span className="font-display text-base capitalize">Fill {day} {meal}</span>
-          <button onClick={onClose} className={`${btn} px-2 py-1`}>Close</button>
+          <div className="flex shrink-0 items-center gap-2">
+            {currentRecipeId && (
+              <Link href={`/recipes/${currentRecipeId}`} className={`${btn} px-2 py-1`}>
+                View recipe →
+              </Link>
+            )}
+            <button onClick={onClose} className={`${btn} px-2 py-1`}>Close</button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 p-4">

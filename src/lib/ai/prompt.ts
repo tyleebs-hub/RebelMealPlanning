@@ -36,10 +36,9 @@ function libraryLine(r: PlanRecipe): string {
   return `${r.id} | ${r.title} | [${r.meal_types.join(",")}] | ${time} | serves ${r.base_servings} | ${flags || "-"} | ${costTier(r.costPerServing)}`;
 }
 
-export function formatLibrary(ctx: PlanningContext): string {
-  return `RECIPE LIBRARY (id | title | meal types | active/total time | base servings | flags | cost tier per serving):\n${ctx.library
-    .map(libraryLine)
-    .join("\n")}`;
+export function formatLibrary(ctx: PlanningContext, exclude?: Set<string>): string {
+  const lines = ctx.library.filter((r) => !exclude?.has(r.id)).map(libraryLine);
+  return `RECIPE LIBRARY (id | title | meal types | active/total time | base servings | flags | cost tier per serving):\n${lines.join("\n")}`;
 }
 
 function filledDinnerDays(ctx: PlanningContext): Set<Day> {
