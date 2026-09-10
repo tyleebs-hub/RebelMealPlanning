@@ -14,16 +14,12 @@ import { QuickAddButton } from "@/components/week/QuickAdd";
 import { DeleteRecipeButton } from "@/components/DeleteRecipeButton";
 import { recipeCost, money } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
+import { ScaledIngredients } from "@/components/ScaledIngredients";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
 export const dynamic = "force-dynamic";
 
-function ingredientLine(ing: Ingredient): string {
-  if (ing.raw_text) return ing.raw_text;
-  const qty = ing.qty != null ? String(ing.qty) : "";
-  return [qty, ing.unit ?? "", ing.item].filter(Boolean).join(" ").trim();
-}
 
 export default async function RecipeDetailPage({
   params,
@@ -136,15 +132,7 @@ export default async function RecipeDetailPage({
         {ings.length === 0 ? (
           <p className="mt-2 text-sm text-[var(--ink2)]">No ingredients listed.</p>
         ) : (
-          <ul className="mt-3 flex flex-col">
-            {ings.map((ing) => (
-              <li key={ing.id} className="flex items-baseline gap-2 border-b border-[var(--rule2)] py-1.5 text-sm">
-                <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--rule)" }} />
-                <span>{ingredientLine(ing)}</span>
-                {ing.is_pantry_staple && <span className="text-xs text-[var(--ink2)]">(staple)</span>}
-              </li>
-            ))}
-          </ul>
+          <ScaledIngredients ingredients={ings} baseServings={r.base_servings} />
         )}
       </section>
 

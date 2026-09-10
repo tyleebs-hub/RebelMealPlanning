@@ -14,6 +14,7 @@ import {
 import type { Ingredient, Step } from "@/lib/types";
 import { publicImageUrl } from "@/lib/storage";
 import { DishArt } from "@/components/DishArt";
+import { ScaledIngredients } from "@/components/ScaledIngredients";
 import { hueForRecipe } from "@/lib/hues";
 import { TimeLine } from "@/components/recipe-meta";
 import { AppHeader } from "@/components/AppHeader";
@@ -23,11 +24,6 @@ export const dynamic = "force-dynamic";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
-function ingredientText(i: Ingredient): string {
-  if (i.raw_text && i.raw_text.trim()) return i.raw_text.trim();
-  const qty = i.qty != null ? String(i.qty) : "";
-  return [qty, i.unit ?? "", i.item].filter(Boolean).join(" ").trim();
-}
 
 export default async function TodayPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const who = await currentWho();
@@ -190,15 +186,8 @@ function MealBlock({
 
         {ings.length > 0 && (
           <div className="mt-5">
-            <h3 className={EYEBROW}>Ingredients{event && event.multiplier > 1 ? ` (base batch — cooking ${event.multiplier}×)` : ""}</h3>
-            <ul className="mt-2 flex flex-col">
-              {ings.map((ing) => (
-                <li key={ing.id} className="flex items-baseline gap-2 border-b border-[var(--rule2)] py-1.5 text-sm">
-                  <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--rule)" }} />
-                  <span>{ingredientText(ing)}</span>
-                </li>
-              ))}
-            </ul>
+            <h3 className={EYEBROW}>Ingredients</h3>
+            <ScaledIngredients ingredients={ings} baseServings={recipe?.base_servings} initial={event?.multiplier ?? 1} />
           </div>
         )}
 
