@@ -8,7 +8,7 @@ type Section = "today" | "week" | "recipes" | "grocery" | "vote";
 // Wordmark per household. Voting is Leber-only (see CLAUDE.md > Households).
 const WORDMARK: Record<string, string> = {
   leber: "Leber Family Meals",
-  mom: "Mom's Meals",
+  mom: "DPZ Meals",
 };
 
 function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {

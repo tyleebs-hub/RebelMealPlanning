@@ -7,8 +7,9 @@ const RECIPE_COLS =
   "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min,flat_cost";
 
 // Get or create the week row for a Monday start date within a household.
-// Idempotent. On first creation, seed the default Friday dinner: Pizza / Movie
-// Night (still fully overridable, and it won't come back once changed).
+// Idempotent. On first creation, the Leber household seeds a default Friday
+// dinner (Pizza / Movie Night, fully overridable and gone once changed); other
+// households start with an empty week.
 export async function weekIdForStart(
   sb: SupabaseClient,
   start: string,
@@ -39,18 +40,20 @@ export async function weekIdForStart(
     throw error ?? new Error("could not get week");
   }
   const weekId = created.id as string;
-  await sb.from("slots").upsert(
-    {
-      week_id: weekId,
-      day: "fri",
-      meal: "dinner",
-      fill_type: "out",
-      out_label: "Pizza / Movie Night",
-      cook_event_id: null,
-      sauce: null,
-    },
-    { onConflict: "week_id,day,meal" },
-  );
+  if (householdId === "leber") {
+    await sb.from("slots").upsert(
+      {
+        week_id: weekId,
+        day: "fri",
+        meal: "dinner",
+        fill_type: "out",
+        out_label: "Pizza / Movie Night",
+        cook_event_id: null,
+        sauce: null,
+      },
+      { onConflict: "week_id,day,meal" },
+    );
+  }
   return weekId;
 }
 
