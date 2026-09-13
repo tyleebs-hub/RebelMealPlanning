@@ -7,8 +7,8 @@ import { requireHousehold } from "@/lib/session";
 import { isAiConfigured, forcedTool, chatComplete, type ChatMessage } from "@/lib/ai/client";
 import { gatherPlanningContext } from "@/lib/ai/context";
 import {
-  SYSTEM,
-  CHAT_SYSTEM,
+  buildSystem,
+  buildChatSystem,
   formatLibrary,
   formatWeekOpenings,
   formatGenerateUser,
@@ -41,7 +41,7 @@ export async function generateWeek(start: string): Promise<{ ok: true; plan: Wee
   try {
     const ctx = await gatherPlanningContext(start, household);
     const plan = await forcedTool({
-      system: SYSTEM,
+      system: buildSystem(ctx),
       cachedContext: formatLibrary(ctx),
       userContent: formatGenerateUser(ctx),
       tool: PROPOSE_WEEK_TOOL,
@@ -95,7 +95,7 @@ export async function planChat(
   try {
     const ctx = await gatherPlanningContext(start, household);
     const { text, toolInput } = await chatComplete({
-      system: `${CHAT_SYSTEM}\n\n${formatWeekOpenings(ctx)}`,
+      system: `${buildChatSystem(ctx)}\n\n${formatWeekOpenings(ctx)}`,
       cachedContext: formatLibrary(ctx),
       messages,
       tool: SUGGEST_MEALS_TOOL,
@@ -207,7 +207,7 @@ export async function swapSlot(
     // dish and getting confused.
     const excludeIds = new Set(ctx.cookEvents.map((c) => c.recipe_id));
     const swaps = await forcedTool({
-      system: SYSTEM,
+      system: buildSystem(ctx),
       cachedContext: formatLibrary(ctx, excludeIds),
       userContent: formatSwapUser(ctx, day, meal, currentTitle, lunchesFed, reason),
       tool: PROPOSE_SWAPS_TOOL,

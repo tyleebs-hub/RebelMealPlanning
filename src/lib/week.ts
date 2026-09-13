@@ -1,10 +1,4 @@
-import {
-  DINNER_SERVINGS,
-  LUNCH_SERVINGS,
-  TARGET_DINNERS,
-  TARGET_LUNCHES,
-  type MealType,
-} from "@/lib/types";
+import { DEFAULT_CONFIG, type HouseholdConfig, type MealType } from "@/lib/types";
 
 // ---- days -------------------------------------------------------------------
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -140,12 +134,12 @@ export type Ledger = {
   available: number;
 };
 
-export function computeLedger(ce: CookEvent, slots: Slot[]): Ledger {
+export function computeLedger(ce: CookEvent, slots: Slot[], cfg: HouseholdConfig = DEFAULT_CONFIG): Ledger {
   const produced = ce.recipe.base_servings * ce.multiplier;
-  const reserved = ce.kind === "dinner" ? DINNER_SERVINGS : 0;
+  const reserved = ce.kind === "dinner" ? cfg.dinnerServings : 0;
   const claimed =
     slots.filter((s) => s.cook_event_id === ce.id && s.fill_type === "leftover").length *
-    LUNCH_SERVINGS;
+    cfg.lunchServings;
   return { produced, reserved, claimed, available: produced - reserved - claimed };
 }
 
@@ -157,16 +151,16 @@ export type Coverage = {
   lunchTarget: number;
 };
 
-export function computeCoverage(slots: Slot[]): Coverage {
+export function computeCoverage(slots: Slot[], cfg: HouseholdConfig = DEFAULT_CONFIG): Coverage {
   const filled = (meal: Meal) =>
     slots.filter(
       (s) => s.meal === meal && (s.fill_type === "cook" || s.fill_type === "leftover"),
     ).length;
   return {
     dinnersFilled: filled("dinner"),
-    dinnerTarget: TARGET_DINNERS,
-    lunchPortions: filled("lunch") * LUNCH_SERVINGS,
-    lunchTarget: TARGET_LUNCHES * LUNCH_SERVINGS,
+    dinnerTarget: cfg.targetDinners,
+    lunchPortions: filled("lunch") * cfg.lunchServings,
+    lunchTarget: cfg.targetLunches * cfg.lunchServings,
   };
 }
 

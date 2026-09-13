@@ -1,7 +1,7 @@
 // Cost model. See CLAUDE.md > Cost. Prices come from the ingredient_prices
 // catalog keyed by normalizeKey(item, unit); recipe cost sums line costs.
 
-import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
+import { DEFAULT_CONFIG, type HouseholdConfig } from "@/lib/types";
 import { normalizeKey } from "@/lib/grocery";
 import type { CookEvent, Slot } from "@/lib/week";
 
@@ -61,11 +61,12 @@ export type WeeklyCost = {
 };
 
 // Allocate each cook's cost across the slots it feeds. Cost/serving is fixed;
-// a dinner slot consumes DINNER_SERVINGS, a lunch slot LUNCH_SERVINGS.
+// a dinner slot consumes cfg.dinnerServings, a lunch slot cfg.lunchServings.
 export function weeklyCost(
   cookEvents: CookEvent[],
   slots: Slot[],
   recipeCostById: Map<string, RecipeCost>,
+  cfg: HouseholdConfig = DEFAULT_CONFIG,
 ): WeeklyCost {
   let total = 0;
   let dinner = 0;
@@ -81,19 +82,19 @@ export function weeklyCost(
     total += cCost;
     if (rc && rc.unpriced > 0) unpricedCooks++;
 
-    let dinnerServings = 0;
-    let lunchServings = 0;
+    let dinnerPortions = 0;
+    let lunchPortions = 0;
     for (const s of slots) {
       if (s.cook_event_id !== ce.id) continue;
-      if (s.meal === "dinner") dinnerServings += DINNER_SERVINGS;
-      else lunchServings += LUNCH_SERVINGS;
+      if (s.meal === "dinner") dinnerPortions += cfg.dinnerServings;
+      else lunchPortions += cfg.lunchServings;
     }
     // A dinner cook reserves a dinner's worth even before leftovers are assigned.
-    if (ce.kind === "dinner" && dinnerServings === 0) dinnerServings = DINNER_SERVINGS;
+    if (ce.kind === "dinner" && dinnerPortions === 0) dinnerPortions = cfg.dinnerServings;
 
-    const consumed = Math.min(produced, dinnerServings + lunchServings);
-    dinner += dinnerServings * perServing;
-    lunch += lunchServings * perServing;
+    const consumed = Math.min(produced, dinnerPortions + lunchPortions);
+    dinner += dinnerPortions * perServing;
+    lunch += lunchPortions * perServing;
     unallocated += Math.max(0, produced - consumed) * perServing;
   }
 

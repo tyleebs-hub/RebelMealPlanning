@@ -1,4 +1,3 @@
-import { LUNCH_SERVINGS } from "@/lib/types";
 import type { Coverage } from "@/lib/week";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
@@ -36,11 +35,11 @@ function Meter({
   );
 }
 
-export function CoverageMeters({ coverage, spare }: { coverage: Coverage; spare: number }) {
+export function CoverageMeters({ coverage, spare, lunchServings }: { coverage: Coverage; spare: number; lunchServings: number }) {
   const shortBy = Math.max(0, coverage.lunchTarget - coverage.lunchPortions);
   const guidance =
     shortBy > 0
-      ? spare >= LUNCH_SERVINGS
+      ? spare >= lunchServings
         ? `${shortBy} lunch portions short — you have ${spare} spare portions cooked, so assign them to a lunch slot.`
         : `${shortBy} lunch portions short — raise a dinner multiplier or add a prep batch.`
       : null;

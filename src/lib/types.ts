@@ -1,9 +1,27 @@
 // Shared domain constants and DB row types. See CLAUDE.md.
 
+// Leber defaults. Each household overrides these in app_settings (see
+// CLAUDE.md > Households); the constants are the fallback and the Leber values.
 export const DINNER_SERVINGS = 4; // 2 adults + 2 kids
 export const LUNCH_SERVINGS = 2; // Tyler + Charity
 export const TARGET_DINNERS = 5; // per week
 export const TARGET_LUNCHES = 5; // per week, x2 people = 10 portions
+
+// A household's serving math and weekly targets. Threaded into the ledger,
+// coverage, cost, and AI so each household plans for its own table.
+export type HouseholdConfig = {
+  dinnerServings: number;
+  lunchServings: number;
+  targetDinners: number;
+  targetLunches: number;
+};
+
+export const DEFAULT_CONFIG: HouseholdConfig = {
+  dinnerServings: DINNER_SERVINGS,
+  lunchServings: LUNCH_SERVINGS,
+  targetDinners: TARGET_DINNERS,
+  targetLunches: TARGET_LUNCHES,
+};
 
 export type MealType =
   | "breakfast"

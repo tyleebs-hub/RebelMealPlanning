@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart, loadWeek } from "@/lib/week-data";
 import { currentSession, requireAuth, requireHousehold } from "@/lib/session";
 import { signSession } from "@/lib/auth";
-import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
+import { loadHouseholdConfig } from "@/lib/household";
 import { DAYS, earliestLunchIndex, type Day, type Meal } from "@/lib/week";
 import { fetchRecipeFromUrl } from "@/app/recipes/new/actions";
 import { parseIngredient } from "@/lib/ingredient-parse";
@@ -296,6 +296,7 @@ export async function clearSlot(start: string, day: Day, meal: Meal) {
 // preferring the event with the most available. See CLAUDE.md.
 export async function autoFillLunches(start: string) {
   const household = await requireHousehold();
+  const cfg = await loadHouseholdConfig(household);
   const sb = getSupabaseAdmin();
   const weekId = await weekIdForStart(sb, start, household);
 
@@ -323,12 +324,12 @@ export async function autoFillLunches(start: string) {
   const available = new Map<string, number>();
   for (const ce of events) {
     const produced = ce.recipe.base_servings * ce.multiplier;
-    const reserved = ce.kind === "dinner" ? DINNER_SERVINGS : 0;
+    const reserved = ce.kind === "dinner" ? cfg.dinnerServings : 0;
     available.set(ce.id, produced - reserved);
   }
   for (const s of allSlots) {
     if (s.fill_type === "leftover" && s.cook_event_id) {
-      available.set(s.cook_event_id, (available.get(s.cook_event_id) ?? 0) - LUNCH_SERVINGS);
+      available.set(s.cook_event_id, (available.get(s.cook_event_id) ?? 0) - cfg.lunchServings);
     }
   }
 
@@ -349,10 +350,10 @@ export async function autoFillLunches(start: string) {
   for (let li = 0; li < DAYS.length; li++) {
     const day = DAYS[li];
     if (lunchFilled.has(day)) continue;
-    // pick reheatable event with the most available >= LUNCH_SERVINGS that is
+    // pick reheatable event with the most available >= lunchServings that is
     // already cooked by this day (a leftover can't precede its cook).
     let best: string | null = null;
-    let bestAvail = LUNCH_SERVINGS - 1;
+    let bestAvail = cfg.lunchServings - 1;
     for (const [id, avail] of available) {
       if (!reheatable.has(id)) continue;
       if ((earliestById.get(id) ?? 0) > li) continue; // not cooked yet
@@ -362,7 +363,7 @@ export async function autoFillLunches(start: string) {
       }
     }
     if (!best) continue;
-    available.set(best, available.get(best)! - LUNCH_SERVINGS);
+    available.set(best, available.get(best)! - cfg.lunchServings);
     newSlots.push({ week_id: weekId, day, meal: "lunch", fill_type: "leftover", cook_event_id: best });
   }
 
@@ -446,6 +447,25 @@ export async function setBudget(start: string, which: "dinner" | "lunch", amount
   await sb
     .from("app_settings")
     .upsert({ household_id: household, key, value }, { onConflict: "household_id,key" });
+  revalidatePath(`/week/${start}`);
+}
+
+// Save this household's serving math + weekly targets (see CLAUDE.md >
+// Households). Values are clamped to sane integer ranges.
+export async function setHouseholdConfig(
+  start: string,
+  cfg: { dinnerServings: number; lunchServings: number; targetDinners: number; targetLunches: number },
+) {
+  const household = await requireHousehold();
+  const sb = getSupabaseAdmin();
+  const clamp = (n: number, hi: number) => String(Math.max(1, Math.min(hi, Math.round(Number(n) || 1))));
+  const rows = [
+    { household_id: household, key: "dinner_servings", value: clamp(cfg.dinnerServings, 20) },
+    { household_id: household, key: "lunch_servings", value: clamp(cfg.lunchServings, 20) },
+    { household_id: household, key: "target_dinners", value: clamp(cfg.targetDinners, 7) },
+    { household_id: household, key: "target_lunches", value: clamp(cfg.targetLunches, 14) },
+  ];
+  await sb.from("app_settings").upsert(rows, { onConflict: "household_id,key" });
   revalidatePath(`/week/${start}`);
 }
 

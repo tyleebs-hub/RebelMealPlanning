@@ -23,6 +23,7 @@ import { recipeCost, weeklyCost, type RecipeCost } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { CoverageMeters } from "@/components/week/CoverageMeters";
 import { CostPanel } from "@/components/week/CostPanel";
+import { HouseholdSettings } from "@/components/week/HouseholdSettings";
 import { GeneratePlan } from "@/components/week/GeneratePlan";
 import { PlanChat } from "@/components/week/PlanChat";
 import { isAiConfigured } from "@/lib/ai/client";
@@ -31,6 +32,7 @@ import { autoFillLunches, removeSuggestion } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
 import { AppHeader } from "@/components/AppHeader";
 import { currentHousehold } from "@/lib/session";
+import { loadHouseholdConfig } from "@/lib/household";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
 
   const household = (await currentHousehold()) ?? "leber";
   const showVoting = household === "leber"; // Mom's household has no voting flow
+  const cfg = await loadHouseholdConfig(household);
   const { cookEvents, slots } = await loadWeek(start, household);
   const { suggestions } = showVoting
     ? await loadSuggestions(start, household)
@@ -67,7 +70,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     .order("title");
   const recipes = (recipeData ?? []) as PickRecipe[];
 
-  const coverage = computeCoverage(slots);
+  const coverage = computeCoverage(slots, cfg);
 
   // Weekly cost: sum each planned recipe's ingredient cost, allocate across slots.
   const plannedIds = [...new Set(cookEvents.map((ce) => ce.recipe_id))];
@@ -91,11 +94,11 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       );
     }
   }
-  const cost = weeklyCost(cookEvents, slots, recipeCostById);
+  const cost = weeklyCost(cookEvents, slots, recipeCostById, cfg);
 
-  const ledgerById = new Map(cookEvents.map((ce) => [ce.id, computeLedger(ce, slots)]));
+  const ledgerById = new Map(cookEvents.map((ce) => [ce.id, computeLedger(ce, slots, cfg)]));
   // Unassigned portions: cooked but unclaimed (sum of positive availability).
-  const spare = cookEvents.reduce((n, ce) => n + Math.max(0, computeLedger(ce, slots).available), 0);
+  const spare = cookEvents.reduce((n, ce) => n + Math.max(0, computeLedger(ce, slots, cfg).available), 0);
   const eventById = new Map(cookEvents.map((ce) => [ce.id, ce]));
   const slotByKey = new Map(slots.map((s) => [`${s.day}|${s.meal}`, s]));
   const hueMap = hueMapForEvents(cookEvents);
@@ -202,12 +205,14 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       </header>
 
       <div className="mt-4">
-        <CoverageMeters coverage={coverage} spare={spare} />
+        <CoverageMeters coverage={coverage} spare={spare} lunchServings={cfg.lunchServings} />
       </div>
 
       <div className="mt-3">
         <CostPanel start={start} cost={cost} />
       </div>
+
+      <HouseholdSettings start={start} initial={cfg} />
 
       {sauceNudges.length > 0 && (
         <div className="mt-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--amber)", background: "var(--amber-soft)", color: "var(--amber-text)" }}>

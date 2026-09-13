@@ -1,5 +1,4 @@
 import { DAYS, type Coverage, type Day } from "@/lib/week";
-import { DINNER_SERVINGS, LUNCH_SERVINGS, TARGET_DINNERS, TARGET_LUNCHES } from "@/lib/types";
 import type { PlanningContext } from "@/lib/ai/context";
 import type { Validated } from "@/lib/ai/client";
 
@@ -26,25 +25,26 @@ function estimateCoverage(
   for (const s of ctx.slots) if (s.meal === "dinner" && s.fill_type) dinnerDays.add(s.day);
   for (const p of proposals) if (p.kind === "dinner") dinnerDays.add(p.day);
 
+  const { dinnerServings, lunchServings, targetDinners, targetLunches } = ctx.cfg;
   let reheatableSpare = 0;
   for (const c of ctx.cookEvents) {
     if (!c.recipe.reheats_well) continue;
     const produced = c.recipe.base_servings * c.multiplier;
-    reheatableSpare += Math.max(0, produced - (c.kind === "dinner" ? DINNER_SERVINGS : 0));
+    reheatableSpare += Math.max(0, produced - (c.kind === "dinner" ? dinnerServings : 0));
   }
   for (const p of proposals) {
     const r = ctx.libraryById.get(p.recipeId);
     if (!r || !r.reheats_well) continue;
     const produced = r.base_servings * p.multiplier;
-    reheatableSpare += Math.max(0, produced - (p.kind === "dinner" ? DINNER_SERVINGS : 0));
+    reheatableSpare += Math.max(0, produced - (p.kind === "dinner" ? dinnerServings : 0));
   }
 
-  const lunchSlots = Math.min(TARGET_LUNCHES, Math.floor(reheatableSpare / LUNCH_SERVINGS));
+  const lunchSlots = Math.min(targetLunches, Math.floor(reheatableSpare / lunchServings));
   return {
-    dinnersFilled: Math.min(TARGET_DINNERS, dinnerDays.size),
-    dinnerTarget: TARGET_DINNERS,
-    lunchPortions: lunchSlots * LUNCH_SERVINGS,
-    lunchTarget: TARGET_LUNCHES * LUNCH_SERVINGS,
+    dinnersFilled: Math.min(targetDinners, dinnerDays.size),
+    dinnerTarget: targetDinners,
+    lunchPortions: lunchSlots * lunchServings,
+    lunchTarget: targetLunches * lunchServings,
   };
 }
 

@@ -4,7 +4,8 @@ import { loadWeek } from "@/lib/week-data";
 import { computeCoverage, type CookEvent, type Coverage, type Slot } from "@/lib/week";
 import { recipeCost } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
-import type { MealType } from "@/lib/types";
+import { loadHouseholdConfig } from "@/lib/household";
+import type { HouseholdConfig, MealType } from "@/lib/types";
 
 export type PlanRecipe = {
   id: string;
@@ -21,6 +22,7 @@ export type PlanRecipe = {
 };
 
 export type PlanningContext = {
+  household: string;
   weekId: string;
   library: PlanRecipe[];
   libraryById: Map<string, PlanRecipe>;
@@ -28,6 +30,7 @@ export type PlanningContext = {
   cookEvents: CookEvent[];
   slots: Slot[];
   coverage: Coverage;
+  cfg: HouseholdConfig;
 };
 
 // A recipe is plannable if it can serve as dinner, lunch, or a component batch.
@@ -41,6 +44,7 @@ export async function gatherPlanningContext(
 ): Promise<PlanningContext> {
   const sb = getSupabaseAdmin();
   const { weekId, cookEvents, slots } = await loadWeek(start, householdId);
+  const cfg = await loadHouseholdConfig(householdId);
 
   const [{ data: recipeRows }, prices] = await Promise.all([
     sb
@@ -111,7 +115,9 @@ export async function gatherPlanningContext(
     history,
     cookEvents,
     slots,
-    coverage: computeCoverage(slots),
+    coverage: computeCoverage(slots, cfg),
+    cfg,
+    household: householdId,
   };
 }
 
