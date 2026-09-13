@@ -31,6 +31,7 @@ export type Recipe = {
   flat_cost: number | null;
   notes: string | null;
   last_made_at: string | null;
+  household_id: string;
   created_at: string;
 };
 

@@ -3,20 +3,29 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/session";
+import { requireHousehold } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
 import { inferAisleAndStaple } from "@/lib/aisle";
 import { importImageFromUrl } from "@/lib/import-image";
 import type { MealType } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const ALLOWED_FLAGS = new Set(["reheats_well", "kids_like", "scales_cheaply"]);
 const ALLOWED_MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack", "drink", "dessert", "side"];
 
+// A recipe belongs to exactly one household. Confirm the caller owns it before
+// any mutation, so one household can't edit or delete another's recipe by id.
+async function ownsRecipe(sb: SupabaseClient, recipeId: string, household: string): Promise<boolean> {
+  const { data } = await sb.from("recipes").select("household_id").eq("id", recipeId).maybeSingle();
+  return data?.household_id === household;
+}
+
 // Toggle a boolean recipe flag from the recipe page.
 export async function setRecipeFlag(recipeId: string, field: string, value: boolean) {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!ALLOWED_FLAGS.has(field)) return;
   const sb = getSupabaseAdmin();
+  if (!(await ownsRecipe(sb, recipeId, household))) return;
   await sb.from("recipes").update({ [field]: value }).eq("id", recipeId);
   revalidatePath(`/recipes/${recipeId}`);
   revalidatePath("/recipes");
@@ -31,10 +40,12 @@ function lines(v: FormDataEntryValue | null): string[] {
 
 // Edit an existing recipe: update fields and replace its ingredients + steps.
 export async function updateRecipe(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
   const id = String(formData.get("id") || "");
   const title = String(formData.get("title") || "").trim();
   if (!id || !title) return;
+  const sbGuard = getSupabaseAdmin();
+  if (!(await ownsRecipe(sbGuard, id, household))) return;
 
   const mealTypes = formData
     .getAll("meal_types")
@@ -115,8 +126,9 @@ export async function updateRecipe(formData: FormData) {
 // clear those first (they cascade to slots and votes); ingredients/steps/ratings
 // cascade from the recipe itself.
 export async function deleteRecipe(recipeId: string) {
-  await requireAuth();
+  const household = await requireHousehold();
   const sb = getSupabaseAdmin();
+  if (!(await ownsRecipe(sb, recipeId, household))) return;
   await sb.from("cook_events").delete().eq("recipe_id", recipeId);
   await sb.from("suggestions").delete().eq("recipe_id", recipeId);
   await sb.from("recipes").delete().eq("id", recipeId);

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart, loadWeek } from "@/lib/week-data";
-import { currentWho, requireAuth } from "@/lib/session";
+import { currentSession, requireAuth, requireHousehold } from "@/lib/session";
 import { signSession } from "@/lib/auth";
 import { DINNER_SERVINGS, LUNCH_SERVINGS } from "@/lib/types";
 import { DAYS, earliestLunchIndex, type Day, type Meal } from "@/lib/week";
@@ -22,7 +22,7 @@ function clampMultiplier(n: number): number {
 
 // Add a cook event. A dinner cook also fills that day's dinner slot.
 export async function addCookEvent(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
   const start = String(formData.get("start"));
   const recipeId = String(formData.get("recipeId"));
   const multiplier = clampMultiplier(Number(formData.get("multiplier") ?? 1));
@@ -32,7 +32,7 @@ export async function addCookEvent(formData: FormData) {
   if (!recipeId) return;
 
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
 
   const { data: ce, error } = await sb
     .from("cook_events")
@@ -68,11 +68,11 @@ export async function addCookEvent(formData: FormData) {
 // at 1x and fills the slot. Dinner cooks reserve DINNER_SERVINGS; lunch cooks
 // are prep-kind (reserve nothing). The multiplier stepper then lives on the slot.
 export async function pickCook(start: string, day: Day, meal: Meal, recipeId: string) {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!recipeId) return;
   const kind = meal === "dinner" ? "dinner" : "prep";
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   const { data: ce, error } = await sb
     .from("cook_events")
     .insert({ week_id: weekId, recipe_id: recipeId, multiplier: 1, day, kind })
@@ -97,17 +97,18 @@ export async function addCustomMeal(
   cost: number,
   servings: number,
 ) {
-  await requireAuth();
+  const household = await requireHousehold();
   const title = String(name || "").trim();
   if (!title) return;
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   const flat = Math.max(0, Number(cost) || 0);
   const base = Math.max(1, Math.round(Number(servings) || 1));
 
   const { data: existing } = await sb
     .from("recipes")
     .select("id,meal_types")
+    .eq("household_id", household)
     .eq("title", title)
     .eq("source_name", "Custom")
     .maybeSingle();
@@ -119,7 +120,7 @@ export async function addCustomMeal(
   } else {
     const { data: rec } = await sb
       .from("recipes")
-      .insert({ title, meal_types: [meal], base_servings: base, flat_cost: flat, reheats_well: true, source_name: "Custom" })
+      .insert({ title, meal_types: [meal], base_servings: base, flat_cost: flat, reheats_well: true, source_name: "Custom", household_id: household })
       .select("id")
       .single();
     if (!rec) return;
@@ -159,7 +160,7 @@ export async function deleteCookEvent(start: string, cookEventId: string) {
 
 // Assign a leftover lunch (or dinner) slot to a cook event, with optional sauce.
 export async function assignLeftover(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
   const start = String(formData.get("start"));
   const day = String(formData.get("day")) as Day;
   const meal = String(formData.get("meal")) as Meal;
@@ -168,7 +169,7 @@ export async function assignLeftover(formData: FormData) {
   if (!cookEventId) return;
 
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   await sb.from("slots").upsert(
     {
       week_id: weekId,
@@ -185,14 +186,14 @@ export async function assignLeftover(formData: FormData) {
 }
 
 export async function setOut(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
   const start = String(formData.get("start"));
   const day = String(formData.get("day")) as Day;
   const meal = String(formData.get("meal")) as Meal;
   const label = String(formData.get("label") || "").trim() || (meal === "dinner" ? "Out" : "Out");
 
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   await sb.from("slots").upsert(
     {
       week_id: weekId,
@@ -223,10 +224,10 @@ export async function moveSlot(
   from: { day: Day; meal: Meal },
   to: { day: Day; meal: Meal },
 ) {
-  await requireAuth();
+  const household = await requireHousehold();
   if (from.meal !== to.meal || from.day === to.day) return;
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
 
   const { data: rows } = await sb
     .from("slots")
@@ -284,9 +285,9 @@ export async function moveSlot(
 }
 
 export async function clearSlot(start: string, day: Day, meal: Meal) {
-  await requireAuth();
+  const household = await requireHousehold();
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   await sb.from("slots").delete().eq("week_id", weekId).eq("day", day).eq("meal", meal);
   revalidate(start);
 }
@@ -294,9 +295,9 @@ export async function clearSlot(start: string, day: Day, meal: Meal) {
 // Auto-fill empty lunch slots from reheatable cook events with spare servings,
 // preferring the event with the most available. See CLAUDE.md.
 export async function autoFillLunches(start: string) {
-  await requireAuth();
+  const household = await requireHousehold();
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
 
   const [{ data: cookEvents }, { data: slots }] = await Promise.all([
     sb
@@ -374,14 +375,14 @@ export async function autoFillLunches(start: string) {
 // ---- suggestions & voting ---------------------------------------------------
 
 export async function addSuggestion(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
   const start = String(formData.get("start"));
   const recipeId = String(formData.get("recipeId"));
   const note = String(formData.get("note") || "").trim() || null;
   if (!recipeId) return;
 
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   const { count } = await sb
     .from("suggestions")
     .select("id", { count: "exact", head: true })
@@ -407,10 +408,11 @@ export async function removeSuggestion(start: string, suggestionId: string) {
 // Cast the current user's vote. "who" is the cookie identity, never trusted
 // from the client.
 export async function castVote(start: string, recipeId: string, vote: "yes" | "sure" | "pass") {
-  const who = await currentWho();
-  if (!who) throw new Error("not signed in");
+  const session = await currentSession();
+  if (!session) throw new Error("not signed in");
+  const { who, household } = session;
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   // Votes anchor to a suggestion row per (week, recipe); create it lazily so
   // Charity votes directly on whatever Tyler drafted, with no manual step.
   const { data: existing } = await sb
@@ -437,11 +439,13 @@ export async function castVote(start: string, recipeId: string, vote: "yes" | "s
 
 // Set a weekly food budget (dinner or lunch). Stored in app_settings.
 export async function setBudget(start: string, which: "dinner" | "lunch", amount: number) {
-  await requireAuth();
+  const household = await requireHousehold();
   const key = which === "dinner" ? "weekly_dinner_budget" : "weekly_lunch_budget";
   const value = String(Math.max(0, Math.round(amount)));
   const sb = getSupabaseAdmin();
-  await sb.from("app_settings").upsert({ key, value }, { onConflict: "key" });
+  await sb
+    .from("app_settings")
+    .upsert({ household_id: household, key, value }, { onConflict: "household_id,key" });
   revalidatePath(`/week/${start}`);
 }
 
@@ -449,8 +453,8 @@ export async function setBudget(start: string, which: "dinner" | "lunch", amount
 export type SlotBrief = { day: Day; meal: Meal; filled: boolean; label: string | null };
 
 export async function weekSlotBrief(start: string): Promise<SlotBrief[]> {
-  await requireAuth();
-  const { cookEvents, slots } = await loadWeek(start);
+  const household = await requireHousehold();
+  const { cookEvents, slots } = await loadWeek(start, household);
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));
   const byKey = new Map(slots.map((s) => [`${s.day}|${s.meal}`, s]));
   const meals: Meal[] = ["dinner", "lunch"];
@@ -473,8 +477,9 @@ export async function suggestRecipe(
   rawUrl: string,
   note: string,
 ): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
-  const who = await currentWho();
-  if (!who) return { ok: false, error: "Not signed in." };
+  const session = await currentSession();
+  if (!session) return { ok: false, error: "Not signed in." };
+  const { who, household } = session;
 
   const fetched = await fetchRecipeFromUrl(rawUrl);
   if (!fetched.ok) return fetched;
@@ -492,6 +497,7 @@ export async function suggestRecipe(
       active_min: r.activeMin,
       total_min: r.totalMin,
       base_servings: r.servings || 4,
+      household_id: household,
     })
     .select("id")
     .single();
@@ -518,7 +524,7 @@ export async function suggestRecipe(
     );
   }
 
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
   const { count } = await sb
     .from("suggestions")
     .select("id", { count: "exact", head: true })
@@ -548,7 +554,7 @@ export async function suggestRecipe(
 // Generate the shareable vote link + message for Charity. Admin only.
 export async function pingCharity(): Promise<{ url: string; message: string }> {
   await requireAuth();
-  const token = await signSession("charity");
+  const token = await signSession("charity", "leber");
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = host.startsWith("localhost") ? "http" : "https";

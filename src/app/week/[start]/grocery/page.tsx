@@ -7,6 +7,7 @@ import type { GroceryIngredient } from "@/lib/grocery";
 import { loadPrices } from "@/lib/cost-data";
 import { GroceryList } from "@/components/week/GroceryList";
 import { AppHeader } from "@/components/AppHeader";
+import { currentHousehold } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
     redirect(`/week/${mondayOfToday()}/grocery`);
   }
 
-  const { weekId, cookEvents } = await loadWeek(start);
+  const household = (await currentHousehold()) ?? "leber";
+  const { weekId, cookEvents } = await loadWeek(start, household);
   const sb = getSupabaseAdmin();
 
   const recipeIds = [...new Set(cookEvents.map((c) => c.recipe_id))];
@@ -41,7 +43,7 @@ export default async function GroceryPage({ params }: { params: Promise<{ start:
     initialChecks[c.item_key] = c.checked;
   }
 
-  const priceMap = await loadPrices();
+  const priceMap = await loadPrices(household);
   const initialPrices: Record<string, number> = Object.fromEntries(priceMap);
 
   const events = cookEvents.map((c) => ({

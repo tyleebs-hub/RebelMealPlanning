@@ -9,9 +9,10 @@ export default async function Home() {
   if (!isAuthConfigured()) redirect("/recipes");
 
   const jar = await cookies();
-  const who = await verifySession(jar.get(COOKIE_NAME)?.value);
-  if (!who) redirect("/login");
+  const session = await verifySession(jar.get(COOKIE_NAME)?.value);
+  if (!session) redirect("/login");
 
-  // Everyone lands on the vote/record page; Tyler taps "Week" to plan.
-  redirect("/vote");
+  // Leber lands on the vote/record page; Tyler taps "Week" to plan. Mom has no
+  // voting, so she lands on her day view.
+  redirect(session.household === "mom" ? "/today" : "/vote");
 }

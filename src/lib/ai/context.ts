@@ -35,9 +35,12 @@ function isPlannable(mt: MealType[], isComponent: boolean): boolean {
   return isComponent || mt.includes("dinner") || mt.includes("lunch");
 }
 
-export async function gatherPlanningContext(start: string): Promise<PlanningContext> {
+export async function gatherPlanningContext(
+  start: string,
+  householdId: string,
+): Promise<PlanningContext> {
   const sb = getSupabaseAdmin();
-  const { weekId, cookEvents, slots } = await loadWeek(start);
+  const { weekId, cookEvents, slots } = await loadWeek(start, householdId);
 
   const [{ data: recipeRows }, prices] = await Promise.all([
     sb
@@ -45,8 +48,9 @@ export async function gatherPlanningContext(start: string): Promise<PlanningCont
       .select(
         "id,title,meal_types,active_min,total_min,scales_cheaply,reheats_well,kids_like,is_component,base_servings",
       )
+      .eq("household_id", householdId)
       .order("title"),
-    loadPrices(),
+    loadPrices(householdId),
   ]);
 
   const rows = (recipeRows ?? []) as Omit<PlanRecipe, "costPerServing">[];
@@ -76,10 +80,11 @@ export async function gatherPlanningContext(start: string): Promise<PlanningCont
   }));
   const libraryById = new Map(library.map((r) => [r.id, r]));
 
-  // Last 3 weeks of cook history (titles only, to avoid repeats).
+  // Last 3 weeks of this household's cook history (titles only, to avoid repeats).
   const { data: pastWeeks } = await sb
     .from("weeks")
     .select("id,start_date")
+    .eq("household_id", householdId)
     .lt("start_date", start)
     .order("start_date", { ascending: false })
     .limit(3);

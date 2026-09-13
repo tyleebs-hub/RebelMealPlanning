@@ -5,6 +5,7 @@ import type { Ingredient, Recipe, Step } from "@/lib/types";
 import { RecipeForm, type RecipeFormInitial } from "@/components/RecipeForm";
 import { updateRecipe } from "../actions";
 import { AppHeader } from "@/components/AppHeader";
+import { currentHousehold } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
   ]);
   if (!recipe) notFound();
   const r = recipe as Recipe;
+  const household = (await currentHousehold()) ?? "leber";
+  if (r.household_id !== household) notFound();
 
   const initial: RecipeFormInitial = {
     title: r.title,

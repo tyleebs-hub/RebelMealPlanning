@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/session";
+import { requireAuth, requireHousehold } from "@/lib/session";
 import { parseIngredient } from "@/lib/ingredient-parse";
 import { inferAisleAndStaple } from "@/lib/aisle";
 import { importImageFromUrl } from "@/lib/import-image";
@@ -66,7 +66,7 @@ export async function fetchRecipeFromUrl(rawUrl: string): Promise<FetchResult> {
 }
 
 export async function createRecipe(formData: FormData) {
-  await requireAuth();
+  const household = await requireHousehold();
 
   const title = String(formData.get("title") || "").trim();
   if (!title) return;
@@ -100,6 +100,7 @@ export async function createRecipe(formData: FormData) {
       kids_like: bool("kids_like"),
       is_component: bool("is_component"),
       notes: String(formData.get("notes") || "").trim() || null,
+      household_id: household,
     })
     .select("id")
     .single();

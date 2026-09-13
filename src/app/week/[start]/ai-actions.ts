@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
-import { requireAuth } from "@/lib/session";
+import { requireHousehold } from "@/lib/session";
 import { isAiConfigured, forcedTool, chatComplete, type ChatMessage } from "@/lib/ai/client";
 import { gatherPlanningContext } from "@/lib/ai/context";
 import {
@@ -36,10 +36,10 @@ const clampMult = (n: number) => Math.max(1, Math.min(8, Math.round(Number(n) ||
 // ---- Generate Week ----------------------------------------------------------
 
 export async function generateWeek(start: string): Promise<{ ok: true; plan: WeekPlan } | { ok: false; error: string }> {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
   try {
-    const ctx = await gatherPlanningContext(start);
+    const ctx = await gatherPlanningContext(start, household);
     const plan = await forcedTool({
       system: SYSTEM,
       cachedContext: formatLibrary(ctx),
@@ -54,9 +54,9 @@ export async function generateWeek(start: string): Promise<{ ok: true; plan: Wee
 }
 
 export async function acceptProposals(start: string, proposals: Proposal[]): Promise<void> {
-  await requireAuth();
+  const household = await requireHousehold();
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
 
   for (const p of proposals) {
     if (!p?.recipeId) continue;
@@ -84,7 +84,7 @@ export async function planChat(
   start: string,
   history: ChatMessage[],
 ): Promise<{ ok: true; reply: string; suggestions: ChatMeal[] } | { ok: false; error: string }> {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
   const messages = (history ?? [])
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
@@ -93,7 +93,7 @@ export async function planChat(
     return { ok: false, error: "Say something first." };
   }
   try {
-    const ctx = await gatherPlanningContext(start);
+    const ctx = await gatherPlanningContext(start, household);
     const { text, toolInput } = await chatComplete({
       system: `${CHAT_SYSTEM}\n\n${formatWeekOpenings(ctx)}`,
       cachedContext: formatLibrary(ctx),
@@ -112,11 +112,11 @@ export async function addChatMeal(
   start: string,
   meal: ChatMeal,
 ): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!meal || (meal.meal !== "dinner" && meal.meal !== "lunch")) return { ok: false, error: "Bad meal." };
   try {
     const sb = getSupabaseAdmin();
-    const weekId = await weekIdForStart(sb, start);
+    const weekId = await weekIdForStart(sb, start, household);
 
     let recipeId = meal.recipeId;
     if (!recipeId) {
@@ -130,6 +130,7 @@ export async function addChatMeal(
           reheats_well: meal.reheatsWell ?? meal.meal === "lunch",
           base_servings: 4,
           source_name: "AI idea",
+          household_id: household,
         })
         .select("id")
         .single();
@@ -183,10 +184,10 @@ export async function swapSlot(
   meal: Meal,
   reason?: string,
 ): Promise<{ ok: true; swaps: Swaps } | { ok: false; error: string }> {
-  await requireAuth();
+  const household = await requireHousehold();
   if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
   try {
-    const ctx = await gatherPlanningContext(start);
+    const ctx = await gatherPlanningContext(start, household);
     const slot = ctx.slots.find((s) => s.day === day && s.meal === meal);
     let currentTitle: string | null = null;
     let lunchesFed = 0;
@@ -228,9 +229,9 @@ export async function applySwap(
   recipeId: string,
   multiplier: number,
 ): Promise<void> {
-  await requireAuth();
+  const household = await requireHousehold();
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, household);
 
   const { data: slot } = await sb
     .from("slots")

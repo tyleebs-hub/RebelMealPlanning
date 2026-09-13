@@ -6,25 +6,35 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const RECIPE_COLS =
   "id,title,image_path,base_servings,reheats_well,is_component,scales_cheaply,meal_types,active_min,total_min,flat_cost";
 
-// Get or create the week row for a Monday start date. Idempotent. On first
-// creation, seed the default Friday dinner: Pizza / Movie Night (still fully
-// overridable, and it won't come back once changed).
-export async function weekIdForStart(sb: SupabaseClient, start: string): Promise<string> {
+// Get or create the week row for a Monday start date within a household.
+// Idempotent. On first creation, seed the default Friday dinner: Pizza / Movie
+// Night (still fully overridable, and it won't come back once changed).
+export async function weekIdForStart(
+  sb: SupabaseClient,
+  start: string,
+  householdId: string,
+): Promise<string> {
   const { data: existing } = await sb
     .from("weeks")
     .select("id")
+    .eq("household_id", householdId)
     .eq("start_date", start)
     .maybeSingle();
   if (existing) return existing.id as string;
 
   const { data: created, error } = await sb
     .from("weeks")
-    .insert({ start_date: start })
+    .insert({ start_date: start, household_id: householdId })
     .select("id")
     .single();
   if (error || !created) {
     // Lost a create race — the row now exists; re-read it.
-    const { data: retry } = await sb.from("weeks").select("id").eq("start_date", start).single();
+    const { data: retry } = await sb
+      .from("weeks")
+      .select("id")
+      .eq("household_id", householdId)
+      .eq("start_date", start)
+      .single();
     if (retry) return retry.id as string;
     throw error ?? new Error("could not get week");
   }
@@ -50,9 +60,9 @@ export type WeekData = {
   slots: Slot[];
 };
 
-export async function loadWeek(start: string): Promise<WeekData> {
+export async function loadWeek(start: string, householdId: string): Promise<WeekData> {
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, householdId);
 
   const [{ data: cookEvents }, { data: slots }] = await Promise.all([
     sb
@@ -82,9 +92,10 @@ export type SuggestionWithVotes = {
 
 export async function loadSuggestions(
   start: string,
+  householdId: string,
 ): Promise<{ weekId: string; suggestions: SuggestionWithVotes[] }> {
   const sb = getSupabaseAdmin();
-  const weekId = await weekIdForStart(sb, start);
+  const weekId = await weekIdForStart(sb, start, householdId);
   const { data } = await sb
     .from("suggestions")
     .select("id,recipe_id,note,sort_order,recipe:recipes(title,image_path),votes(who,vote)")

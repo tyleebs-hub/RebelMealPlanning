@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentWho } from "@/lib/session";
+import { currentSession } from "@/lib/session";
 import { loadSuggestions, loadWeek, type Vote, type Who } from "@/lib/week-data";
 import { DAYS, addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
@@ -24,9 +24,11 @@ export default async function VotePage({
 }: {
   searchParams: Promise<{ w?: string }>;
 }) {
-  const who = await currentWho();
-  if (!who) redirect("/login");
-  const me: Who = who;
+  const session = await currentSession();
+  if (!session) redirect("/login");
+  // Voting is a Leber-household flow (Tyler + Charity). Mom has no vote page.
+  if (session.household !== "leber") redirect("/today");
+  const me: Who = session.who === "charity" ? "charity" : "tyler";
   const other: Who = me === "tyler" ? "charity" : "tyler";
 
   const { w } = await searchParams;
@@ -34,8 +36,8 @@ export default async function VotePage({
   const thisWeek = start === mondayOfToday();
 
   const [{ suggestions }, { cookEvents, slots }] = await Promise.all([
-    loadSuggestions(start),
-    loadWeek(start),
+    loadSuggestions(start, session.household),
+    loadWeek(start, session.household),
   ]);
 
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));

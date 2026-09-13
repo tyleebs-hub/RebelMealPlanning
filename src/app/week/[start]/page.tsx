@@ -30,6 +30,7 @@ import { WeekGrid, type DayView, type SlotView } from "@/components/week/WeekGri
 import { autoFillLunches, removeSuggestion } from "./actions";
 import { PingCharity } from "@/components/week/PingCharity";
 import { AppHeader } from "@/components/AppHeader";
+import { currentHousehold } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -51,13 +52,18 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     redirect(`/week/${mondayOfToday()}`);
   }
 
-  const { cookEvents, slots } = await loadWeek(start);
-  const { suggestions } = await loadSuggestions(start);
+  const household = (await currentHousehold()) ?? "leber";
+  const showVoting = household === "leber"; // Mom's household has no voting flow
+  const { cookEvents, slots } = await loadWeek(start, household);
+  const { suggestions } = showVoting
+    ? await loadSuggestions(start, household)
+    : { suggestions: [] as Awaited<ReturnType<typeof loadSuggestions>>["suggestions"] };
 
   const sb = getSupabaseAdmin();
   const { data: recipeData } = await sb
     .from("recipes")
     .select("id,title,meal_types,is_component,active_min,kids_like,reheats_well")
+    .eq("household_id", household)
     .order("title");
   const recipes = (recipeData ?? []) as PickRecipe[];
 
@@ -69,7 +75,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   if (plannedIds.length > 0) {
     const [{ data: ingRows }, prices] = await Promise.all([
       sb.from("ingredients").select("recipe_id,qty,unit,item").in("recipe_id", plannedIds),
-      loadPrices(),
+      loadPrices(household),
     ]);
     const byRecipe = new Map<string, { qty: number | null; unit: string | null; item: string }[]>();
     for (const r of (ingRows ?? []) as { recipe_id: string; qty: number | null; unit: string | null; item: string }[]) {
@@ -213,7 +219,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         </div>
       )}
 
-      {charityPicks.length > 0 && (
+      {showVoting && charityPicks.length > 0 && (
         <section className="mt-4 rounded-xl border px-4 py-3" style={{ borderColor: "var(--go)", background: "var(--go-soft, var(--rule2))" }}>
           <h2 className={EYEBROW}>Charity wants to try</h2>
           <ul className="mt-2 flex flex-col gap-1.5">
@@ -259,6 +265,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
       {isAiConfigured && <PlanChat start={start} />}
 
       {/* Charity's votes — she votes on whatever you've drafted above */}
+      {showVoting && (
       <section className="mt-8">
         <div className="flex items-center justify-between gap-2">
           <h2 className={EYEBROW}>Charity&apos;s votes</h2>
@@ -287,6 +294,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
           </ul>
         )}
       </section>
+      )}
       </main>
     </>
   );

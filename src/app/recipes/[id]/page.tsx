@@ -15,6 +15,7 @@ import { DeleteRecipeButton } from "@/components/DeleteRecipeButton";
 import { recipeCost, money } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { ScaledIngredients } from "@/components/ScaledIngredients";
+import { currentHousehold } from "@/lib/session";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -59,9 +60,12 @@ export default async function RecipeDetailPage({
   if (!recipe) notFound();
 
   const r = recipe as Recipe;
+  const household = (await currentHousehold()) ?? "leber";
+  // Recipes belong to one household; don't expose another's by guessed URL.
+  if (r.household_id !== household) notFound();
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
-  const rc = r.flat_cost != null ? { cost: r.flat_cost, unpriced: 0, total: 0 } : recipeCost(ings, await loadPrices());
+  const rc = r.flat_cost != null ? { cost: r.flat_cost, unpriced: 0, total: 0 } : recipeCost(ings, await loadPrices(household));
   const jsonLd = recipeJsonLd(r, ings, stps);
   const imageUrl = publicImageUrl(r.image_path);
 

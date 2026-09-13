@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentWho } from "@/lib/session";
+import { currentSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadWeek } from "@/lib/week-data";
 import {
@@ -26,8 +26,8 @@ const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--i
 
 
 export default async function TodayPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
-  const who = await currentWho();
-  if (!who) redirect("/login");
+  const session = await currentSession();
+  if (!session) redirect("/login");
 
   const { d } = await searchParams;
   const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : todayIso();
@@ -35,7 +35,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const monday = mondayOf(date);
   const dayName = dayNameOf(date);
 
-  const { cookEvents, slots } = await loadWeek(monday);
+  const { cookEvents, slots } = await loadWeek(monday, session.household);
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));
   const dinner = slots.find((s) => s.day === dayName && s.meal === "dinner");
   const lunch = slots.find((s) => s.day === dayName && s.meal === "lunch");

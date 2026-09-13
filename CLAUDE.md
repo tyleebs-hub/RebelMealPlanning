@@ -1,7 +1,9 @@
 # Meal Planner
 
-A private household meal planner for Tyler and Charity Leber. Two users, one household.
-Not a product. Optimize for the two of them actually using it, not for generality.
+A private household meal planner. The primary household is Tyler and Charity Leber.
+A second household (Tyler's mom) uses the same app with its own login. Not a
+product. Optimize for the actual people using it, not for generality. See
+Households below for how the two are kept separate.
 
 ## Stack
 
@@ -130,9 +132,37 @@ No accounts, no email, no magic-link email flow. Two people, both trusted.
 - Charity gets in via a signed token in a URL (`/vote/<token>`), which sets the household
   cookie on arrival. She never types a password. The Ping Charity button generates the
   message containing this link.
+- `MOM_PASSWORD` env var signs into the second household (see Households). The session
+  cookie carries both `who` (tyler | charity | mom) and `household` (leber | mom); every
+  plan/price/setting/recipe read and write is scoped to that household, derived from the
+  cookie and never from the URL. Old cookies with no household default to `leber`.
 
 That is the entire auth system. Do not add Supabase Auth, do not add roles tables, do not
 add password reset.
+
+## Households
+
+Two households share one app and one database, but nothing crosses between them:
+each owns its **own** recipe library, weeks, cook events, slots, grocery, prices,
+budgets, and settings. Households live in a `households` table keyed by a text
+slug (`leber`, `mom`) that is also the value stored in the session cookie, so
+scoping needs no id lookup.
+
+- **Ownership.** `recipes.household_id` marks the owner; `weeks`, `app_settings`,
+  and `ingredient_prices` carry `household_id` directly. Everything downstream of a
+  week (`cook_events`, `slots`, `suggestions`, `votes`, `grocery_checks`) and of a
+  recipe (`ingredients`, `steps`, `ratings`) is scoped transitively through its
+  parent. `weeks` is unique on `(household_id, start_date)`, not `start_date` alone.
+- **Mom's library was seeded once** as a copy of Leber's recipes (with ingredients
+  and steps) and then evolves independently — new recipes on either side do not
+  cross over. Seeded copies share the original `image_path`; photo deletes are
+  reference-counted so removing one household's photo never breaks the other's.
+- **Per household, editable** (in `app_settings`): `dinner_servings`,
+  `lunch_servings`, `target_dinners`, `target_lunches`, and the two budgets. Mom is
+  three adults (dinner 3, lunch 3); Leber is the constants below. The `DINNER_SERVINGS`
+  etc. in code are the Leber defaults until the settings-driven values are wired in.
+- **Voting is Leber-only.** `households.voting_enabled` is false for Mom: no vote
+  page, no Ping, no Charity's-votes section. Mom lands on Today, not the vote page.
 
 ## Schema
 
@@ -153,6 +183,7 @@ recipes
   is_component bool default false
   notes text
   last_made_at date
+  household_id text not null default 'leber'  -- owning household; see Households
   created_at timestamptz default now()
 
 ingredients
@@ -174,14 +205,21 @@ steps
 
 ratings
   recipe_id uuid fk -> recipes on delete cascade
-  who text check (who in ('tyler','charity'))
+  who text check (who in ('tyler','charity','mom'))
   stars int check (stars between 1 and 5)
   updated_at timestamptz
   primary key (recipe_id, who)
 
+households
+  id text pk                  -- slug: 'leber' | 'mom'; also the cookie value
+  name text                   -- shown in the header
+  voting_enabled bool default true
+
 weeks
   id uuid pk
-  start_date date unique      -- Monday
+  start_date date             -- Monday
+  household_id text not null default 'leber'
+  unique (household_id, start_date)
   created_at timestamptz
 
 cook_events                   -- the supply side
@@ -214,7 +252,7 @@ suggestions
 
 votes
   suggestion_id uuid fk -> suggestions on delete cascade
-  who text check (who in ('tyler','charity'))
+  who text check (who in ('tyler','charity','mom'))
   vote text check (vote in ('yes','sure','pass'))
   primary key (suggestion_id, who)
 
@@ -254,9 +292,10 @@ Include a "copy as plain text" action.
 
 ## Cost
 
-Costs are ingredient-driven and reused. A shared `ingredient_prices` catalog stores a
-unit price per normalized `item|unit` key (same key the grocery merge uses). Price an
-ingredient once and every recipe containing it inherits the price.
+Costs are ingredient-driven and reused. A per-household `ingredient_prices` catalog stores
+a unit price per normalized `item|unit` key (same key the grocery merge uses), keyed by
+`(household_id, item_key)`. Price an ingredient once and every recipe in that household
+containing it inherits the price. Each household prices its own groceries.
 
 ```
 line cost     = ingredient.qty * unit_price[item|unit]
@@ -361,6 +400,7 @@ ahead.
   phone. The desktop layout is secondary.
 - Supabase free tier pauses a project after 7 days of no requests. Weekly use sits close
   to that line. If it becomes annoying, add a scheduled ping, not a paid plan.
-- Do not add: nutrition tracking, multi-household support, notifications,
-  a native app, or an ingredient-substitution engine.
+- Do not add: nutrition tracking, notifications, a native app, or an
+  ingredient-substitution engine. (Multi-household support was added deliberately;
+  see Households.)
 - Tyler prefers no em dashes in any user-facing copy.

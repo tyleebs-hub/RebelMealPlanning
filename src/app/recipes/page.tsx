@@ -3,6 +3,7 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Recipe } from "@/lib/types";
 import { RecipeLibraryGrid } from "@/components/RecipeLibraryGrid";
 import { AppHeader } from "@/components/AppHeader";
+import { currentHousehold } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +28,11 @@ export default async function RecipesPage() {
   let loadError: string | null = null;
 
   if (supabase) {
+    const household = (await currentHousehold()) ?? "leber";
     const { data, error } = await supabase
       .from("recipes")
       .select("*")
+      .eq("household_id", household)
       .order("title", { ascending: true });
     if (error) loadError = error.message;
     else recipes = (data ?? []) as Recipe[];
