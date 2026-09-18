@@ -42,11 +42,15 @@ export async function generateWeek(start: string): Promise<{ ok: true; plan: Wee
     const ctx = await gatherPlanningContext(start, household);
     const plan = await forcedTool({
       system: buildSystem(ctx),
-      cachedContext: formatLibrary(ctx),
+      // Recent meals (last 2 weeks) are removed from the candidate list so the
+      // planner can't re-propose them.
+      cachedContext: formatLibrary(ctx, ctx.recentRecipeIds),
       userContent: formatGenerateUser(ctx),
       tool: PROPOSE_WEEK_TOOL,
       validate: (input) => validateWeekPlan(input, ctx),
     });
+    // Safety net: never return a recipe cooked in the last 2 weeks.
+    plan.proposals = plan.proposals.filter((p) => !ctx.recentRecipeIds.has(p.recipeId));
     return { ok: true, plan };
   } catch (e) {
     return { ok: false, error: (e as Error).message };

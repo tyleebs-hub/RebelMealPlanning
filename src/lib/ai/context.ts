@@ -7,6 +7,39 @@ import { loadPrices } from "@/lib/cost-data";
 import { loadHouseholdConfig } from "@/lib/household";
 import type { HouseholdConfig, MealType } from "@/lib/types";
 
+export type Protein = "chicken" | "beef" | "pork" | "turkey" | "fish" | "vegetarian" | "other";
+
+// Broth/stock/sauce phrases that name a meat but aren't the dish's protein.
+function stripFlavorings(t: string): string {
+  return t
+    .replace(/chicken (?:broth|stock|bouillon|base|granules|powder|seasoning)/g, " ")
+    .replace(/beef (?:broth|stock|bouillon|base|granules)/g, " ")
+    .replace(/(?:vegetable|veggie) (?:broth|stock)/g, " ")
+    .replace(/fish sauce|oyster sauce|worcestershire/g, " ");
+}
+function detectProtein(text: string): Protein {
+  const t = stripFlavorings(text.toLowerCase());
+  if (/shrimp|salmon|tuna|\bcod\b|halibut|tilapia|\bfish\b|crab|scallop|seafood|prawn|anchov|sardine/.test(t)) return "fish";
+  if (/chicken/.test(t)) return "chicken";
+  if (/turkey/.test(t)) return "turkey";
+  if (/\bbeef\b|steak|sirloin|ribeye|brisket|ground beef|meatloaf|corned beef|carne asada/.test(t)) return "beef";
+  if (/\bpork\b|bacon|sausage|\bham\b|chorizo|prosciutto|pancetta|carnitas/.test(t)) return "pork";
+  if (/tofu|tempeh|seitan|lentil|chickpea|garbanzo|\bbean\b|\bbeans\b|black bean|vegan|vegetarian|veggie|plant.?based|falafel|hummus|paneer|eggplant|mushroom|cauliflower|jackfruit|edamame/.test(t)) return "vegetarian";
+  return "other";
+}
+
+// Protein of a dish from its title alone, so the planner can vary proteins.
+export function proteinOf(title: string): Protein {
+  return detectProtein(title);
+}
+
+// When the title is inconclusive, fall back to scanning the ingredient items.
+export function proteinFor(title: string, ingredientItems: string[]): Protein {
+  const byTitle = detectProtein(title);
+  if (byTitle !== "other") return byTitle;
+  return detectProtein(ingredientItems.join(" "));
+}
+
 export type PlanRecipe = {
   id: string;
   title: string;
@@ -19,6 +52,7 @@ export type PlanRecipe = {
   is_component: boolean;
   base_servings: number;
   costPerServing: number | null;
+  protein: Protein;
 };
 
 export type PlanningContext = {
@@ -27,6 +61,7 @@ export type PlanningContext = {
   library: PlanRecipe[];
   libraryById: Map<string, PlanRecipe>;
   history: { week: string; titles: string[] }[];
+  recentRecipeIds: Set<string>; // cooked in the last 2 weeks; do not re-propose
   cookEvents: CookEvent[];
   slots: Slot[];
   coverage: Coverage;
@@ -60,9 +95,10 @@ export async function gatherPlanningContext(
   const rows = (recipeRows ?? []) as Omit<PlanRecipe, "costPerServing">[];
   const plannable = rows.filter((r) => isPlannable(r.meal_types, r.is_component));
 
-  // Cost per serving for the plannable set (one ingredients query).
+  // Cost per serving + protein for the plannable set (one ingredients query).
   const ids = plannable.map((r) => r.id);
   const costByRecipe = new Map<string, number | null>();
+  const proteinByRecipe = new Map<string, Protein>();
   if (ids.length > 0) {
     const { data: ings } = await sb
       .from("ingredients")
@@ -73,18 +109,23 @@ export async function gatherPlanningContext(
       (byRecipe.get(r.recipe_id) ?? byRecipe.set(r.recipe_id, []).get(r.recipe_id)!).push(r);
     }
     for (const r of plannable) {
-      const rc = recipeCost(byRecipe.get(r.id) ?? [], prices);
+      const rows = byRecipe.get(r.id) ?? [];
+      const rc = recipeCost(rows, prices);
       costByRecipe.set(r.id, rc.cost > 0 ? rc.cost / Math.max(1, r.base_servings) : null);
+      proteinByRecipe.set(r.id, proteinFor(r.title, rows.map((x) => x.item)));
     }
   }
 
   const library: PlanRecipe[] = plannable.map((r) => ({
     ...r,
     costPerServing: costByRecipe.get(r.id) ?? null,
+    protein: proteinByRecipe.get(r.id) ?? proteinOf(r.title),
   }));
   const libraryById = new Map(library.map((r) => [r.id, r]));
 
-  // Last 3 weeks of this household's cook history (titles only, to avoid repeats).
+  // Last 3 weeks of this household's cook history. Titles feed the prompt; the
+  // recipe ids from the 2 most recent weeks are excluded from candidates so the
+  // planner never re-proposes something cooked recently.
   const { data: pastWeeks } = await sb
     .from("weeks")
     .select("id,start_date")
@@ -93,19 +134,18 @@ export async function gatherPlanningContext(
     .order("start_date", { ascending: false })
     .limit(3);
   const history: { week: string; titles: string[] }[] = [];
-  for (const w of (pastWeeks ?? []) as { id: string; start_date: string }[]) {
+  const recentRecipeIds = new Set<string>();
+  const weeksArr = (pastWeeks ?? []) as { id: string; start_date: string }[];
+  for (let i = 0; i < weeksArr.length; i++) {
+    const w = weeksArr[i];
     const { data: ces } = await sb
       .from("cook_events")
-      .select("recipe:recipes(title)")
+      .select("recipe_id,recipe:recipes(title)")
       .eq("week_id", w.id);
-    const titles = [
-      ...new Set(
-        ((ces ?? []) as unknown as { recipe: { title: string } | null }[])
-          .map((c) => c.recipe?.title)
-          .filter(Boolean) as string[],
-      ),
-    ];
+    const rows = (ces ?? []) as unknown as { recipe_id: string | null; recipe: { title: string } | null }[];
+    const titles = [...new Set(rows.map((c) => c.recipe?.title).filter(Boolean) as string[])];
     if (titles.length) history.push({ week: w.start_date, titles });
+    if (i < 2) for (const c of rows) if (c.recipe_id) recentRecipeIds.add(c.recipe_id);
   }
 
   return {
@@ -113,6 +153,7 @@ export async function gatherPlanningContext(
     library,
     libraryById,
     history,
+    recentRecipeIds,
     cookEvents,
     slots,
     coverage: computeCoverage(slots, cfg),

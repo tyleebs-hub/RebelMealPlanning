@@ -1,5 +1,5 @@
 import { DAYS, dayLabel, type Day } from "@/lib/week";
-import { costTier, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
+import { costTier, proteinOf, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
 import type { ToolDef } from "@/lib/ai/client";
 
 // Who each household cooks for, so the model's suggestions fit the table.
@@ -23,7 +23,8 @@ STANDING RULES:
 - Friday dinner is pizza / movie night — leave Friday's dinner alone (do not propose a Friday dinner cook).
 - At most 2 "ambitious" meals a week (long active time or lots of hands-on work). Everything else should be ~30 active minutes or less. Watch total active time across the whole week, not just per meal.
 - Favor overlapping ingredients across cooks and stay budget-conscious (prefer $ and $$ over $$$ when it doesn't hurt variety).
-- Avoid repeating recipes cooked in the last 3 weeks (history is provided).
+- Do NOT propose anything cooked in the last 2 weeks. Those recipes have already been removed from the candidate library; recent history is listed only for context.
+- VARY THE PROTEINS across the week. Each recipe is tagged with its protein (chicken, beef, pork, turkey, fish, vegetarian, other). Rotate proteins so the week is a mix — some vegetarian, some chicken, some beef, a little fish. With 5 dinners, do not propose more than 2 that share the same protein (3 only if truly unavoidable), and count the proteins already locked in this week toward that limit. If chicken is already planned twice, do not add more chicken. Spread the proteins even when the week starts blank.
 - Favor widely-liked, crowd-pleasing dinners; respect recency and variety so it doesn't feel like the same week twice.${ctx.household === "leber" ? " Kid-friendly is a plus." : ""}
 
 FAMILY FOOD RULES:
@@ -42,12 +43,12 @@ function libraryLine(r: PlanRecipe): string {
     r.scales_cheaply ? "" : "no-cheap-scale",
   ].filter(Boolean).join(",");
   const time = `${r.active_min ?? "?"}a/${r.total_min ?? "?"}t min`;
-  return `${r.id} | ${r.title} | [${r.meal_types.join(",")}] | ${time} | serves ${r.base_servings} | ${flags || "-"} | ${costTier(r.costPerServing)}`;
+  return `${r.id} | ${r.title} | ${r.protein} | [${r.meal_types.join(",")}] | ${time} | serves ${r.base_servings} | ${flags || "-"} | ${costTier(r.costPerServing)}`;
 }
 
 export function formatLibrary(ctx: PlanningContext, exclude?: Set<string>): string {
   const lines = ctx.library.filter((r) => !exclude?.has(r.id)).map(libraryLine);
-  return `RECIPE LIBRARY (id | title | meal types | active/total time | base servings | flags | cost tier per serving):\n${lines.join("\n")}`;
+  return `RECIPE LIBRARY (id | title | protein | meal types | active/total time | base servings | flags | cost tier per serving):\n${lines.join("\n")}`;
 }
 
 function filledDinnerDays(ctx: PlanningContext): Set<Day> {
@@ -72,6 +73,18 @@ function historyText(ctx: PlanningContext): string {
   return ctx.history.map((h) => `- week of ${h.week}: ${h.titles.join(", ")}`).join("\n");
 }
 
+function proteinBalanceText(ctx: PlanningContext): string {
+  const counts: Record<string, number> = {};
+  for (const c of ctx.cookEvents) {
+    const p = ctx.libraryById.get(c.recipe_id)?.protein ?? proteinOf(c.recipe.title);
+    counts[p] = (counts[p] ?? 0) + 1;
+  }
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const summary = entries.length ? entries.map(([p, n]) => `${p} x${n}`).join(", ") : "none yet — the week is blank";
+  return `- Proteins already planned this week: ${summary}
+- Fill the empty dinners with UNDER-represented proteins so the finished week is a varied mix (rotate vegetarian / chicken / beef / fish, with pork or turkey now and then). Do not stack the same protein: no more than 2 dinners of any one protein across the whole week, counting what's already planned above.`;
+}
+
 export function formatGenerateUser(ctx: PlanningContext): string {
   const filled = filledDinnerDays(ctx);
   const empty = DAYS.filter((d) => d !== "fri" && !filled.has(d));
@@ -84,7 +97,10 @@ CURRENT WEEK:
 - Existing cooks (LOCKED — do not replace, plan around them):
 ${lockedCooksText(ctx)}
 
-RECENT HISTORY (avoid repeating these):
+PROTEIN BALANCE (vary the week's proteins):
+${proteinBalanceText(ctx)}
+
+RECENT MEALS (cooked in the last few weeks — already removed from the candidate library; do not propose these):
 ${historyText(ctx)}
 
 Propose cooks (recipe_id + day + kind + multiplier + one-line rationale each) so that dinners reach ${ctx.cfg.targetDinners} and lunch portions reach ${ctx.cfg.targetLunches * ctx.cfg.lunchServings}. Use kind "dinner" for a meal cooked that night; use kind "prep" for a component/batch cooked to feed lunches only (no day needed, but pick a day for grocery/prep planning). Raise multipliers or add a prep batch to cover lunches. Also write a short 1-2 sentence summary for the top of the week view.`;
