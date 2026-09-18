@@ -42,9 +42,20 @@ function parseLeadingQty(tokens: string[]): { qty: number | null; rest: string[]
   return { qty: null, rest: tokens };
 }
 
+// A metric alt-measure in parentheses, e.g. "1 cup (200g) flour". Kept in
+// raw_text but removed from the parsed item so it doesn't fragment grocery
+// merging or pricing keys. The scaler re-derives it from raw_text.
+const METRIC_PAREN =
+  /\(\s*[^)]*?\b[\d.]+\s*(?:g|grams?|kg|kilograms?|ml|milliliters?|millilitres?|l|liters?|litres?)\b[^)]*?\)/gi;
+
 export function parseIngredient(line: string): ParsedIngredient {
   const raw_text = line.trim();
-  const tokens = raw_text.split(/\s+/);
+  const work = raw_text
+    .replace(METRIC_PAREN, " ")
+    .replace(/(\d+)\s+and\s+(?=[\d./])/gi, "$1 ") // "2 and 1/2" -> "2 1/2"
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  const tokens = work.split(/\s+/);
   const { qty, rest } = parseLeadingQty(tokens);
   let unit: string | null = null;
   let itemTokens = rest;
@@ -55,7 +66,7 @@ export function parseIngredient(line: string): ParsedIngredient {
       itemTokens = rest.slice(1);
     }
   }
-  const item = itemTokens.join(" ").trim() || raw_text;
+  const item = itemTokens.join(" ").trim() || work || raw_text;
   return { qty, unit, item, raw_text };
 }
 

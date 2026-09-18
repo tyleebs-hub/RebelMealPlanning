@@ -22,10 +22,42 @@ function fmtQty(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
+// A metric alt-measure written in parentheses, e.g. "(313g)" or "(360 ml)".
+const METRIC_NUM =
+  /\(\s*([\d.]+(?:\s+\d+\/\d+)?|\d+\s*\/\s*\d+)\s*(g|grams?|kg|kilograms?|ml|milliliters?|millilitres?|l|liters?|litres?)\b/i;
+const METRIC_PAREN =
+  /\(\s*[^)]*?\b[\d.]+\s*(?:g|grams?|kg|kilograms?|ml|milliliters?|millilitres?|l|liters?|litres?)\b[^)]*?\)/gi;
+
+function parseNum(s: string): number | null {
+  const t = s.trim();
+  let m = t.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (m) return +m[1] + +m[2] / +m[3];
+  m = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (m) return +m[1] / +m[2];
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Scale a metric alt-measure (grams/ml) from the original line so it tracks the
+// primary amount, e.g. at x2 "(313g)" -> " (626g)".
+function scaledMetric(ing: Ingredient, mult: number): string {
+  const src = ing.raw_text && METRIC_NUM.test(ing.raw_text) ? ing.raw_text : ing.item;
+  const m = src?.match(METRIC_NUM);
+  if (!m) return "";
+  const base = parseNum(m[1]);
+  if (base == null) return "";
+  const v = base * mult;
+  const shown = Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10);
+  return ` (${shown}${m[2]})`;
+}
+
 function line(ing: Ingredient, mult: number): string {
-  // Scale only when there's a parsed quantity; otherwise show the original line.
+  // No parsed quantity: show the original line unchanged.
   if (ing.qty == null) return (ing.raw_text && ing.raw_text.trim()) || ing.item;
-  return [fmtQty(ing.qty * mult), ing.unit ?? "", ing.item].filter(Boolean).join(" ").trim();
+  // Strip any metric alt-measure from the item text; it's re-added, scaled, below.
+  const item = (ing.item ?? "").replace(METRIC_PAREN, " ").replace(/\s{2,}/g, " ").trim();
+  const primary = [fmtQty(ing.qty * mult), ing.unit ?? "", item].filter(Boolean).join(" ").trim();
+  return primary + scaledMetric(ing, mult);
 }
 
 export function ScaledIngredients({
