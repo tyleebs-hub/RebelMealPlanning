@@ -293,9 +293,14 @@ Include a "copy as plain text" action.
 ## Cost
 
 Costs are ingredient-driven and reused. A per-household `ingredient_prices` catalog stores
-a unit price per normalized `item|unit` key (same key the grocery merge uses), keyed by
-`(household_id, item_key)`. Price an ingredient once and every recipe in that household
-containing it inherits the price. Each household prices its own groceries.
+a unit price per `item|unit` key, keyed by `(household_id, item_key)`. The `item` is the
+**canonical** ingredient name (`canonicalItem()` in `src/lib/ingredient-canon.ts`), which
+strips prep/size noise and normalizes spelling/plurals/synonyms so "all-purpose flour
+(spooned & leveled)" and "all purpose flour" share one key and one price. The same
+canonical key drives the grocery merge, so variants combine on the list. The stored
+recipe `ingredients.item` keeps its original text for display; canonicalization happens at
+key time. Price an ingredient once and every recipe in that household containing it
+inherits the price. Each household prices its own groceries.
 
 ```
 line cost     = ingredient.qty * unit_price[item|unit]

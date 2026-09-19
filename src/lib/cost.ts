@@ -3,6 +3,7 @@
 
 import { DEFAULT_CONFIG, type HouseholdConfig } from "@/lib/types";
 import { normalizeKey } from "@/lib/grocery";
+import { canonicalItem } from "@/lib/ingredient-canon";
 import type { CookEvent, Slot } from "@/lib/week";
 
 export type PriceMap = Map<string, number>; // item_key -> unit price
@@ -22,7 +23,7 @@ export function recipeCost(ings: CostIngredient[], prices: PriceMap): RecipeCost
   for (const ing of ings) {
     const hasQty = ing.qty != null && ing.qty > 0;
     if (hasQty) total++;
-    const p = prices.get(normalizeKey(ing.item, ing.unit ?? ""));
+    const p = prices.get(normalizeKey(canonicalItem(ing.item), ing.unit ?? ""));
     if (p != null) cost += (ing.qty ?? 0) * p;
     else if (hasQty) unpriced++;
   }

@@ -1,6 +1,8 @@
 // Grocery list generation. See CLAUDE.md > Grocery list.
-// Merge ingredients across selected cook events by item|unit, scaling each by
-// its cook event's multiplier. Group by aisle; pantry staples separate.
+// Merge ingredients across selected cook events by canonical item|unit, scaling
+// each by its cook event's multiplier. Group by aisle; pantry staples separate.
+
+import { canonicalItem } from "@/lib/ingredient-canon";
 
 export type GroceryIngredient = {
   recipe_id: string;
@@ -93,7 +95,8 @@ export function buildGroceryList(
       const unit = ing.unit?.trim() || null;
       const scaled = ing.qty != null ? ing.qty * ev.multiplier : null;
       const conv = unitConversion(unit);
-      const mergeKey = conv ? `${item.toLowerCase()}|__${conv.cat}` : normalizeKey(item, unit);
+      const canon = canonicalItem(item);
+      const mergeKey = conv ? `${canon}|__${conv.cat}` : normalizeKey(canon, unit);
       let e = acc.get(mergeKey);
       if (!e) {
         e = {
@@ -117,12 +120,12 @@ export function buildGroceryList(
       const f = fmtVolume(e.cups);
       qty = e.cups > 0 ? f.qty : null;
       unit = f.unit;
-      key = normalizeKey(e.item, unit);
+      key = normalizeKey(canonicalItem(e.item), unit);
     } else if (e.cat === "wt") {
       const f = fmtWeight(e.oz);
       qty = e.oz > 0 ? f.qty : null;
       unit = f.unit;
-      key = normalizeKey(e.item, unit);
+      key = normalizeKey(canonicalItem(e.item), unit);
     } else {
       qty = e.qty;
       unit = e.unit;
