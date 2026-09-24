@@ -86,7 +86,9 @@ function extractSteps(instr: Json): string[] {
       const t = node.trim();
       if (t) steps.push(t);
     } else if (node && typeof node === "object") {
-      if (typeIncludes(node, "HowToSection") && node.itemListElement) {
+      // Recurse into a section's steps (HowToSection / ItemList) whenever present,
+      // so a section heading (name) never replaces the real steps.
+      if (node.itemListElement) {
         steps.push(...extractSteps(node.itemListElement));
       } else {
         const t = (node.text ?? node.name ?? "").toString().trim();
