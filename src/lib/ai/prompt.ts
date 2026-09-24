@@ -1,5 +1,5 @@
 import { DAYS, dayLabel, type Day } from "@/lib/week";
-import { costTier, proteinOf, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
+import { costTier, proteinOf, selectCandidates, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
 import type { ToolDef } from "@/lib/ai/client";
 
 // Who each household cooks for, so the model's suggestions fit the table.
@@ -47,7 +47,9 @@ function libraryLine(r: PlanRecipe): string {
 }
 
 export function formatLibrary(ctx: PlanningContext, exclude?: Set<string>): string {
-  const lines = ctx.library.filter((r) => !exclude?.has(r.id)).map(libraryLine);
+  // A balanced, capped candidate set (see selectCandidates) rather than the
+  // entire library — plenty of variety without a multi-thousand-line prompt.
+  const lines = selectCandidates(ctx, exclude).map(libraryLine);
   return `RECIPE LIBRARY (id | title | protein | meal types | active/total time | base servings | flags | cost tier per serving):\n${lines.join("\n")}`;
 }
 

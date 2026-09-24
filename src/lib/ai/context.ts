@@ -171,3 +171,49 @@ export function costTier(costPerServing: number | null): string {
   if (costPerServing < 4) return "$$";
   return "$$$";
 }
+
+// The library can hold thousands of recipes; sending all of them to the model
+// every call is slow and expensive and gains nothing (a week needs 5 dinners).
+// Trim to a balanced, high-quality candidate set: the best N dinners per
+// protein (so the model always has real variety to rotate through), plus a
+// pool of reheatable/component recipes so it can still close the lunch gap.
+// Deterministic so the cached prompt prefix stays stable across calls.
+const DINNER_PER_PROTEIN = 40;
+const EXTRA_LUNCH_CAP = 90;
+
+function candidateScore(ctx: PlanningContext, r: PlanRecipe): number {
+  return (
+    (r.costPerServing != null ? 2 : 0) + // known cost beats a guess
+    (r.reheats_well ? 2 : 0) + // can stretch into lunches
+    (ctx.household === "leber" && r.kids_like ? 1 : 0) +
+    (r.active_min != null && r.active_min <= 45 ? 1 : 0) // weeknight-friendly
+  );
+}
+
+export function selectCandidates(ctx: PlanningContext, exclude?: Set<string>): PlanRecipe[] {
+  const pool = ctx.library.filter((r) => !exclude?.has(r.id));
+  const byScore = (a: PlanRecipe, b: PlanRecipe) =>
+    candidateScore(ctx, b) - candidateScore(ctx, a) || a.title.localeCompare(b.title);
+
+  const isDinner = (r: PlanRecipe) => r.meal_types.includes("dinner") || r.meal_types.length === 0;
+
+  const buckets = new Map<Protein, PlanRecipe[]>();
+  for (const r of pool) {
+    if (!isDinner(r)) continue;
+    (buckets.get(r.protein) ?? buckets.set(r.protein, []).get(r.protein)!).push(r);
+  }
+
+  const chosen = new Map<string, PlanRecipe>();
+  for (const list of buckets.values()) {
+    for (const r of list.sort(byScore).slice(0, DINNER_PER_PROTEIN)) chosen.set(r.id, r);
+  }
+
+  // Lunch machinery: components and reheatable lunch recipes not already picked.
+  const extras = pool
+    .filter((r) => !chosen.has(r.id) && (r.is_component || r.reheats_well || r.meal_types.includes("lunch")))
+    .sort(byScore)
+    .slice(0, EXTRA_LUNCH_CAP);
+  for (const r of extras) chosen.set(r.id, r);
+
+  return [...chosen.values()].sort((a, b) => a.title.localeCompare(b.title));
+}

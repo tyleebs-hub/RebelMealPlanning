@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Recipe } from "@/lib/types";
 import { MealTypeChips, RecipeBadges, TimeLine } from "@/components/recipe-meta";
 import { publicImageUrl } from "@/lib/storage";
@@ -11,13 +11,23 @@ import { RecipeFilterBar } from "@/components/RecipeFilterBar";
 import { QuickAddButton } from "@/components/week/QuickAdd";
 import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-filter";
 
+// Render a page at a time so a 2,000-recipe library doesn't mount thousands of
+// image cards at once.
+const PAGE_SIZE = 60;
+
 export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
   const [filters, setFilters] = useState<RecipeFilters>(EMPTY_FILTERS);
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   const shown = useMemo(
     () => recipes.filter((r) => matchesFilters(r, filters)),
     [recipes, filters],
   );
+
+  // Any change to the filter set starts the list back at the first page.
+  useEffect(() => setLimit(PAGE_SIZE), [filters]);
+
+  const visible = shown.slice(0, limit);
 
   return (
     <>
@@ -31,7 +41,7 @@ export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
         </p>
       ) : (
         <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
-          {shown.map((r) => (
+          {visible.map((r) => (
             <li key={r.id} className="relative">
               <div className="absolute right-2 top-2 z-10">
                 <QuickAddButton recipeId={r.id} recipeTitle={r.title} />
@@ -57,6 +67,21 @@ export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {shown.length > limit && (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + PAGE_SIZE)}
+            className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-4 py-2 text-sm font-medium hover:border-[var(--ink2)]"
+          >
+            Show more
+          </button>
+          <span className="font-mono text-[11px] text-[var(--ink2)]">
+            Showing {visible.length} of {shown.length}
+          </span>
+        </div>
       )}
     </>
   );
