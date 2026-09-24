@@ -63,12 +63,18 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     : { suggestions: [] as Awaited<ReturnType<typeof loadSuggestions>>["suggestions"] };
 
   const sb = getSupabaseAdmin();
-  const { data: recipeData } = await sb
-    .from("recipes")
-    .select("id,title,meal_types,is_component,active_min,kids_like,reheats_well")
-    .eq("household_id", household)
-    .order("title");
-  const recipes = (recipeData ?? []) as PickRecipe[];
+  const recipes: PickRecipe[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: recipeData } = await sb
+      .from("recipes")
+      .select("id,title,meal_types,is_component,active_min,kids_like,reheats_well")
+      .eq("household_id", household)
+      .order("title")
+      .range(from, from + 999);
+    const batch = (recipeData ?? []) as PickRecipe[];
+    recipes.push(...batch);
+    if (batch.length < 1000) break;
+  }
 
   const coverage = computeCoverage(slots, cfg);
 

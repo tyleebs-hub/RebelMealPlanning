@@ -29,13 +29,19 @@ export default async function RecipesPage() {
 
   if (supabase) {
     const household = (await currentHousehold()) ?? "leber";
-    const { data, error } = await supabase
-      .from("recipes")
-      .select("*")
-      .eq("household_id", household)
-      .order("title", { ascending: true });
-    if (error) loadError = error.message;
-    else recipes = (data ?? []) as Recipe[];
+    // Page past PostgREST's 1000-row cap so the whole library shows.
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("household_id", household)
+        .order("title", { ascending: true })
+        .range(from, from + 999);
+      if (error) { loadError = error.message; break; }
+      const batch = (data ?? []) as Recipe[];
+      recipes.push(...batch);
+      if (batch.length < 1000) break;
+    }
   }
 
   return (

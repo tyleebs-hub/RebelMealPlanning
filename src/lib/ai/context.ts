@@ -81,18 +81,21 @@ export async function gatherPlanningContext(
   const { weekId, cookEvents, slots } = await loadWeek(start, householdId);
   const cfg = await loadHouseholdConfig(householdId);
 
-  const [{ data: recipeRows }, prices] = await Promise.all([
-    sb
+  const rows: Omit<PlanRecipe, "costPerServing">[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: recipeRows } = await sb
       .from("recipes")
       .select(
         "id,title,meal_types,active_min,total_min,scales_cheaply,reheats_well,kids_like,is_component,base_servings",
       )
       .eq("household_id", householdId)
-      .order("title"),
-    loadPrices(householdId),
-  ]);
-
-  const rows = (recipeRows ?? []) as Omit<PlanRecipe, "costPerServing">[];
+      .order("title")
+      .range(from, from + 999);
+    const batch = (recipeRows ?? []) as Omit<PlanRecipe, "costPerServing">[];
+    rows.push(...batch);
+    if (batch.length < 1000) break;
+  }
+  const prices = await loadPrices(householdId);
   const plannable = rows.filter((r) => isPlannable(r.meal_types, r.is_component));
 
   // Cost per serving + protein for the plannable set (one ingredients query).
