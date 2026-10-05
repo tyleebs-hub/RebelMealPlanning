@@ -8,7 +8,7 @@ import {
   dateLabelIso,
   dayLabel,
   dayNameOf,
-  mondayOf,
+  weekStartOf,
   todayIso,
 } from "@/lib/week";
 import type { Ingredient, Step } from "@/lib/types";
@@ -32,10 +32,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const { d } = await searchParams;
   const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : todayIso();
   const isToday = date === todayIso();
-  const monday = mondayOf(date);
+  const weekStart = weekStartOf(date);
   const dayName = dayNameOf(date);
 
-  const { cookEvents, slots } = await loadWeek(monday, session.household);
+  const { cookEvents, slots } = await loadWeek(weekStart, session.household);
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));
   const dinner = slots.find((s) => s.day === dayName && s.meal === "dinner");
   const lunch = slots.find((s) => s.day === dayName && s.meal === "lunch");
@@ -95,7 +95,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         />
 
         <div className="mt-8 text-center">
-          <Link href={`/week/${monday}`} className="text-sm text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
+          <Link href={`/week/${weekStart}`} className="text-sm text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
             See the whole week
           </Link>
         </div>

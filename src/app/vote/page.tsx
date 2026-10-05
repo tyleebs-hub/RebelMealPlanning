@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentSession } from "@/lib/session";
 import { loadSuggestions, loadWeek, type Vote, type Who } from "@/lib/week-data";
-import { DAYS, addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
+import { DAYS, addDaysIso, formatWeekRange, isWeekStart, weekStartOfToday } from "@/lib/week";
 import { VoteButtons } from "@/components/week/VoteButtons";
 import { SuggestRecipe } from "@/components/week/SuggestRecipe";
 import { SwapSheet } from "@/components/week/SwapSheet";
@@ -32,8 +32,8 @@ export default async function VotePage({
   const other: Who = me === "tyler" ? "charity" : "tyler";
 
   const { w } = await searchParams;
-  const start = w && /^\d{4}-\d{2}-\d{2}$/.test(w) && isMonday(w) ? w : mondayOfToday();
-  const thisWeek = start === mondayOfToday();
+  const start = w && /^\d{4}-\d{2}-\d{2}$/.test(w) && isWeekStart(w) ? w : weekStartOfToday();
+  const thisWeek = start === weekStartOfToday();
 
   const [{ suggestions }, { cookEvents, slots }] = await Promise.all([
     loadSuggestions(start, session.household),

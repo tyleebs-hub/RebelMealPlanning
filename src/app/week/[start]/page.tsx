@@ -13,8 +13,8 @@ import {
   dayIndex,
   earliestLunchIndex,
   formatWeekRange,
-  isMonday,
-  mondayOfToday,
+  isWeekStart,
+  weekStartOfToday,
   SAUCE_ROTATION,
 } from "@/lib/week";
 import { hueMapForEvents } from "@/lib/hues";
@@ -50,8 +50,8 @@ type PickRecipe = {
 
 export default async function WeekPage({ params }: { params: Promise<{ start: string }> }) {
   const { start } = await params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !isMonday(start)) {
-    redirect(`/week/${mondayOfToday()}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !isWeekStart(start)) {
+    redirect(`/week/${weekStartOfToday()}`);
   }
 
   const household = (await currentHousehold()) ?? "leber";
@@ -205,7 +205,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
         <div className="text-center">
           <span className={EYEBROW}>Week of</span>
           <h1 className="mt-0.5 font-mono text-base font-medium sm:text-lg">{formatWeekRange(start)}</h1>
-          {start === mondayOfToday() && <p className={`mt-0.5 ${EYEBROW}`}>this week</p>}
+          {start === weekStartOfToday() && <p className={`mt-0.5 ${EYEBROW}`}>this week</p>}
         </div>
         <Link href={`/week/${next}`} className="rounded-lg px-2 py-1 text-lg text-[var(--ink2)] hover:bg-[var(--rule2)] hover:text-[var(--ink)]" aria-label="Next week">→</Link>
       </header>

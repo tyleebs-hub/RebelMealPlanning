@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadWeek } from "@/lib/week-data";
-import { addDaysIso, formatWeekRange, isMonday, mondayOfToday } from "@/lib/week";
+import { addDaysIso, formatWeekRange, isWeekStart, weekStartOfToday } from "@/lib/week";
 import type { GroceryIngredient } from "@/lib/grocery";
 import { loadPrices } from "@/lib/cost-data";
 import { GroceryList } from "@/components/week/GroceryList";
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function GroceryPage({ params }: { params: Promise<{ start: string }> }) {
   const { start } = await params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !isMonday(start)) {
-    redirect(`/week/${mondayOfToday()}/grocery`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !isWeekStart(start)) {
+    redirect(`/week/${weekStartOfToday()}/grocery`);
   }
 
   const household = (await currentHousehold()) ?? "leber";

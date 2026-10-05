@@ -1,7 +1,9 @@
 import { DEFAULT_CONFIG, type HouseholdConfig, type MealType } from "@/lib/types";
 
 // ---- days -------------------------------------------------------------------
-export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+// Weeks run Sunday -> Saturday. DAYS is in display order AND its index is each
+// day's offset from the week start (a Sunday), so date math keys off it directly.
+export const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 export type Day = (typeof DAYS)[number];
 export type Meal = "lunch" | "dinner";
 
@@ -24,13 +26,12 @@ function localIso(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export function mondayOfToday(): string {
+// The Sunday that starts the current week.
+export function weekStartOfToday(): string {
   const now = new Date();
-  const dow = now.getDay(); // 0=Sun..6=Sat
-  const diff = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  return localIso(monday);
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - now.getDay()); // 0=Sun..6=Sat, back to Sunday
+  return localIso(sunday);
 }
 
 export function addDaysIso(iso: string, n: number): string {
@@ -40,29 +41,28 @@ export function addDaysIso(iso: string, n: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-export function isMonday(iso: string): boolean {
+// A valid week start is a Sunday.
+export function isWeekStart(iso: string): boolean {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 1;
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 0;
 }
 
 export function todayIso(): string {
   return localIso(new Date());
 }
 
-// The Monday (week start) that contains a given date.
-export function mondayOf(iso: string): string {
+// The Sunday (week start) that contains a given date.
+export function weekStartOf(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  const dow = dt.getUTCDay(); // 0=Sun..6=Sat
-  dt.setUTCDate(dt.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  dt.setUTCDate(dt.getUTCDate() - dt.getUTCDay()); // 0=Sun..6=Sat, back to Sunday
   return dt.toISOString().slice(0, 10);
 }
 
-// The day-of-week name (mon..sun) for a date.
+// The day-of-week name for a date. DAYS is Sunday-first, matching getUTCDay.
 export function dayNameOf(iso: string): Day {
   const [y, m, d] = iso.split("-").map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return DAYS[dow === 0 ? 6 : dow - 1];
+  return DAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 
 export function dateForDay(mondayIso: string, day: Day): string {

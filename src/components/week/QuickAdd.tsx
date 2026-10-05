@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { addDaysIso, DAYS, dayLabel, formatWeekRange, mondayOfToday, type Day, type Meal } from "@/lib/week";
+import { addDaysIso, DAYS, dayLabel, formatWeekRange, weekStartOfToday, type Day, type Meal } from "@/lib/week";
 import { pickCook, weekSlotBrief, type SlotBrief } from "@/app/week/[start]/actions";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
@@ -16,7 +16,7 @@ export function QuickAddButton({
   variant?: "tile" | "full";
 }) {
   const [open, setOpen] = useState(false);
-  const thisWeek = mondayOfToday();
+  const thisWeek = weekStartOfToday();
 
   const openSheet = (e: React.MouseEvent) => {
     e.preventDefault();

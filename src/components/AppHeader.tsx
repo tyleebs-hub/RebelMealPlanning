@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { mondayOfToday } from "@/lib/week";
+import { weekStartOfToday } from "@/lib/week";
 import { logout } from "@/app/logout/action";
 import { currentHousehold } from "@/lib/session";
 
@@ -27,7 +27,7 @@ function NavLink({ href, label, active }: { href: string; label: string; active:
 }
 
 export async function AppHeader({ active }: { active?: Section }) {
-  const grocery = `/week/${mondayOfToday()}/grocery`;
+  const grocery = `/week/${weekStartOfToday()}/grocery`;
   const household = (await currentHousehold()) ?? "leber";
   const wordmark = WORDMARK[household] ?? "Meals";
   const showVote = household === "leber";
