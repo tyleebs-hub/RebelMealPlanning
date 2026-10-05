@@ -35,22 +35,32 @@ const clampMult = (n: number) => Math.max(1, Math.min(8, Math.round(Number(n) ||
 
 // ---- Generate Week ----------------------------------------------------------
 
-export async function generateWeek(start: string): Promise<{ ok: true; plan: WeekPlan } | { ok: false; error: string }> {
+export async function generateWeek(
+  start: string,
+  avoid: string[] = [],
+): Promise<{ ok: true; plan: WeekPlan } | { ok: false; error: string }> {
   const household = await requireHousehold();
   if (!isAiConfigured) return { ok: false, error: "AI suggestions aren't configured yet." };
   try {
     const ctx = await gatherPlanningContext(start, household);
+    // Keep out of the candidate list: meals cooked in the last 2 weeks, recipes
+    // already cooked in THIS week, and anything proposed in earlier drafts this
+    // session (`avoid`). The last one is what makes Regenerate give fresh ideas
+    // rather than the same modal plan every press.
+    const exclude = new Set<string>([
+      ...ctx.recentRecipeIds,
+      ...ctx.cookEvents.map((c) => c.recipe_id),
+      ...avoid,
+    ]);
     const plan = await forcedTool({
       system: buildSystem(ctx),
-      // Recent meals (last 2 weeks) are removed from the candidate list so the
-      // planner can't re-propose them.
-      cachedContext: formatLibrary(ctx, ctx.recentRecipeIds),
-      userContent: formatGenerateUser(ctx),
+      cachedContext: formatLibrary(ctx, exclude),
+      userContent: formatGenerateUser(ctx, avoid.length > 0),
       tool: PROPOSE_WEEK_TOOL,
       validate: (input) => validateWeekPlan(input, ctx),
     });
-    // Safety net: never return a recipe cooked in the last 2 weeks.
-    plan.proposals = plan.proposals.filter((p) => !ctx.recentRecipeIds.has(p.recipeId));
+    // Safety net: never return an excluded recipe.
+    plan.proposals = plan.proposals.filter((p) => !exclude.has(p.recipeId));
     return { ok: true, plan };
   } catch (e) {
     return { ok: false, error: (e as Error).message };

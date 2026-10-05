@@ -11,15 +11,22 @@ const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--i
 export function GeneratePlan({ start }: { start: string }) {
   const [plan, setPlan] = useState<WeekPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [seen, setSeen] = useState<string[]>([]); // recipe ids proposed so far this session
   const [pending, startT] = useTransition();
   const router = useRouter();
 
-  const generate = () => {
+  // `fresh` starts a clean run (first Generate / after Dismiss); otherwise this
+  // is a Regenerate and we tell the server to avoid everything seen so far.
+  const generate = (fresh = false) => {
     setError(null);
     startT(async () => {
-      const res = await generateWeek(start);
-      if (res.ok) setPlan(res.plan);
-      else setError(res.error);
+      const avoid = fresh ? [] : seen;
+      const res = await generateWeek(start, avoid);
+      if (res.ok) {
+        setPlan(res.plan);
+        const ids = res.plan.proposals.map((p) => p.recipeId);
+        setSeen(fresh ? ids : [...avoid, ...ids]);
+      } else setError(res.error);
     });
   };
 
@@ -40,7 +47,7 @@ export function GeneratePlan({ start }: { start: string }) {
     return (
       <div>
         <button
-          onClick={generate}
+          onClick={() => generate(true)}
           disabled={pending}
           className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--rule2)] disabled:opacity-50"
         >
@@ -92,10 +99,10 @@ export function GeneratePlan({ start }: { start: string }) {
         >
           Accept all
         </button>
-        <button onClick={generate} disabled={pending} className="rounded-lg border border-[var(--rule)] px-3 py-1.5 text-sm hover:bg-[var(--rule2)] disabled:opacity-50">
+        <button onClick={() => generate(false)} disabled={pending} className="rounded-lg border border-[var(--rule)] px-3 py-1.5 text-sm hover:bg-[var(--rule2)] disabled:opacity-50">
           {pending ? "…" : "Regenerate"}
         </button>
-        <button onClick={() => setPlan(null)} disabled={pending} className="rounded-lg px-3 py-1.5 text-sm text-[var(--ink2)] hover:text-[var(--ink)]">
+        <button onClick={() => { setPlan(null); setSeen([]); }} disabled={pending} className="rounded-lg px-3 py-1.5 text-sm text-[var(--ink2)] hover:text-[var(--ink)]">
           Dismiss
         </button>
       </div>

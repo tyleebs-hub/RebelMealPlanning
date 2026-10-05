@@ -35,6 +35,7 @@ export async function forcedTool<T>(opts: {
     const res = await c.messages.create({
       model: AI_MODEL,
       max_tokens: 4000,
+      temperature: 1, // keep proposals varied across regenerates
       system: [
         { type: "text", text: opts.system },
         { type: "text", text: opts.cachedContext, cache_control: { type: "ephemeral" } },

@@ -87,10 +87,13 @@ function proteinBalanceText(ctx: PlanningContext): string {
 - Fill the empty dinners with UNDER-represented proteins so the finished week is a varied mix (rotate vegetarian / chicken / beef / fish, with pork or turkey now and then). Do not stack the same protein: no more than 2 dinners of any one protein across the whole week, counting what's already planned above.`;
 }
 
-export function formatGenerateUser(ctx: PlanningContext): string {
+export function formatGenerateUser(ctx: PlanningContext, isRegenerate = false): string {
   const filled = filledDinnerDays(ctx);
   const empty = DAYS.filter((d) => d !== "fri" && !filled.has(d));
-  return `TASK: Propose a plan to fill the empty DINNER slots and close the lunch-portion gap.
+  const regenNote = isRegenerate
+    ? "\nThis is a REGENERATE: the cook wanted different ideas. Everything you proposed before has been removed from the library above, so build a genuinely different plan (different dishes, and feel free to vary the proteins and day placements).\n"
+    : "";
+  return `TASK: Propose a plan to fill the empty DINNER slots and close the lunch-portion gap.${regenNote}
 
 CURRENT WEEK:
 - Dinners filled: ${ctx.coverage.dinnersFilled}/${ctx.coverage.dinnerTarget}
