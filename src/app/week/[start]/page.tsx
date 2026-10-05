@@ -44,6 +44,7 @@ type PickRecipe = {
   meal_types: MealType[];
   is_component: boolean;
   active_min: number | null;
+  total_min: number | null;
   kids_like: boolean;
   reheats_well: boolean;
 };
@@ -67,7 +68,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
   for (let from = 0; ; from += 1000) {
     const { data: recipeData } = await sb
       .from("recipes")
-      .select("id,title,meal_types,is_component,active_min,kids_like,reheats_well")
+      .select("id,title,meal_types,is_component,active_min,total_min,kids_like,reheats_well")
       .eq("household_id", household)
       .order("title")
       .range(from, from + 999);
@@ -165,6 +166,7 @@ export default async function WeekPage({ params }: { params: Promise<{ start: st
     meal_types: r.meal_types,
     isComponent: r.is_component,
     active_min: r.active_min,
+    total_min: r.total_min,
     kids_like: r.kids_like,
     reheats_well: r.reheats_well,
   }));

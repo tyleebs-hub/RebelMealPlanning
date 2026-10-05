@@ -46,6 +46,7 @@ export type PickerRecipe = {
   meal_types: MealType[];
   isComponent: boolean;
   active_min: number | null;
+  total_min: number | null;
   kids_like: boolean;
   reheats_well: boolean;
 };

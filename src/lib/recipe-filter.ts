@@ -5,7 +5,7 @@ import type { MealType } from "@/lib/types";
 export type FilterableRecipe = {
   title: string;
   meal_types: MealType[];
-  active_min: number | null;
+  total_min: number | null;
   kids_like: boolean;
   reheats_well: boolean;
 };
@@ -13,7 +13,7 @@ export type FilterableRecipe = {
 export type RecipeFilters = {
   q: string;
   meals: MealType[]; // empty = any
-  maxActive: number | null; // null = any
+  maxTime: number | null; // max total time (time to table), null = any
   kids: boolean;
   reheats: boolean;
 };
@@ -21,7 +21,7 @@ export type RecipeFilters = {
 export const EMPTY_FILTERS: RecipeFilters = {
   q: "",
   meals: [],
-  maxActive: null,
+  maxTime: null,
   kids: false,
   reheats: false,
 };
@@ -48,12 +48,12 @@ export function matchesFilters(
       Boolean(opts?.untaggedAlways && r.meal_types.length === 0);
     if (!hit) return false;
   }
-  if (f.maxActive != null && (r.active_min == null || r.active_min > f.maxActive)) return false;
+  if (f.maxTime != null && (r.total_min == null || r.total_min > f.maxTime)) return false;
   if (f.kids && !r.kids_like) return false;
   if (f.reheats && !r.reheats_well) return false;
   return true;
 }
 
 export function filtersActive(f: RecipeFilters): boolean {
-  return Boolean(f.q || f.meals.length || f.maxActive != null || f.kids || f.reheats);
+  return Boolean(f.q || f.meals.length || f.maxTime != null || f.kids || f.reheats);
 }

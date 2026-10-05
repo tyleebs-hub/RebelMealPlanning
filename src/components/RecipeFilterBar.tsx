@@ -80,8 +80,8 @@ export function RecipeFilterBar({
         {TIME_OPTIONS.map((t) => (
           <Chip
             key={t.value}
-            on={filters.maxActive === t.value}
-            onClick={() => set({ maxActive: filters.maxActive === t.value ? null : t.value })}
+            on={filters.maxTime === t.value}
+            onClick={() => set({ maxTime: filters.maxTime === t.value ? null : t.value })}
           >
             {t.label}
           </Chip>
@@ -97,7 +97,7 @@ export function RecipeFilterBar({
           <button
             type="button"
             onClick={() =>
-              onChange({ q: "", meals: [], maxActive: null, kids: false, reheats: false })
+              onChange({ q: "", meals: [], maxTime: null, kids: false, reheats: false })
             }
             className="ml-1 text-xs text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]"
           >
