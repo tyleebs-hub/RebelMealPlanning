@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { DAYS, dayLabel, formatWeekRange, mondayOfToday, type Day, type Meal } from "@/lib/week";
+import { addDaysIso, DAYS, dayLabel, formatWeekRange, mondayOfToday, type Day, type Meal } from "@/lib/week";
 import { pickCook, weekSlotBrief, type SlotBrief } from "@/app/week/[start]/actions";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
@@ -16,7 +16,7 @@ export function QuickAddButton({
   variant?: "tile" | "full";
 }) {
   const [open, setOpen] = useState(false);
-  const start = mondayOfToday();
+  const thisWeek = mondayOfToday();
 
   const openSheet = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,7 +45,7 @@ export function QuickAddButton({
       )}
       {open && (
         <QuickAddSheet
-          start={start}
+          minWeek={thisWeek}
           recipeId={recipeId}
           recipeTitle={recipeTitle}
           onClose={() => setOpen(false)}
@@ -55,24 +55,41 @@ export function QuickAddButton({
   );
 }
 
+// How many weeks ahead you can plan from the current week.
+const MAX_WEEKS_AHEAD = 8;
+
 function QuickAddSheet({
-  start,
+  minWeek,
   recipeId,
   recipeTitle,
   onClose,
 }: {
-  start: string;
+  minWeek: string;
   recipeId: string;
   recipeTitle: string;
   onClose: () => void;
 }) {
+  const [start, setStart] = useState(minWeek);
   const [brief, setBrief] = useState<SlotBrief[] | null>(null);
   const [pending, startT] = useTransition();
   const [placing, setPlacing] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
+  const maxWeek = addDaysIso(minWeek, MAX_WEEKS_AHEAD * 7);
+  const canPrev = start > minWeek;
+  const canNext = start < maxWeek;
+  const stepWeek = (n: number) => {
+    const next = addDaysIso(start, n * 7);
+    if (next < minWeek || next > maxWeek) return;
+    setDone(null);
+    setStart(next);
+  };
+  const weekOffset = Math.round((Date.parse(start) - Date.parse(minWeek)) / (7 * 86400000));
+  const weekLabel = weekOffset === 0 ? "This week" : weekOffset === 1 ? "Next week" : `In ${weekOffset} weeks`;
+
   useEffect(() => {
     let alive = true;
+    setBrief(null);
     weekSlotBrief(start).then((b) => alive && setBrief(b));
     return () => { alive = false; };
   }, [start]);
@@ -90,7 +107,7 @@ function QuickAddSheet({
           b.day === day && b.meal === meal ? { ...b, filled: true, label: recipeTitle } : b,
         ),
       );
-      setDone(`${dayLabel(day)} · ${meal}`);
+      setDone(`${dayLabel(day)} · ${meal} (${weekLabel.toLowerCase()})`);
       setPlacing(null);
     });
   };
@@ -109,12 +126,34 @@ function QuickAddSheet({
             <span className="font-display text-base leading-tight">Add to a slot</span>
             <button onClick={onClose} className="rounded-lg border border-[var(--rule)] px-2 py-1 text-sm hover:bg-[var(--rule2)]">Close</button>
           </div>
-          <p className="mt-0.5 truncate text-sm text-[var(--ink2)]">{recipeTitle} · {formatWeekRange(start)}</p>
+          <p className="mt-0.5 truncate text-sm text-[var(--ink2)]">{recipeTitle}</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              onClick={() => stepWeek(-1)}
+              disabled={!canPrev}
+              aria-label="Previous week"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--rule)] text-base leading-none hover:bg-[var(--rule2)] disabled:opacity-30"
+            >
+              ‹
+            </button>
+            <div className="min-w-0 text-center">
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]">{weekLabel}</div>
+              <div className="truncate text-sm font-medium">{formatWeekRange(start)}</div>
+            </div>
+            <button
+              onClick={() => stepWeek(1)}
+              disabled={!canNext}
+              aria-label="Next week"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--rule)] text-base leading-none hover:bg-[var(--rule2)] disabled:opacity-30"
+            >
+              ›
+            </button>
+          </div>
         </div>
 
         <div className="p-3">
           {!brief ? (
-            <p className="px-1 py-6 text-center text-sm text-[var(--ink2)]">Loading this week…</p>
+            <p className="px-1 py-6 text-center text-sm text-[var(--ink2)]">Loading…</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {DAYS.map((day) => (
