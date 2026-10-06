@@ -19,19 +19,14 @@ const DAY_LABEL: Record<Day, string> = {
 export const dayLabel = (d: Day) => DAY_LABEL[d];
 
 // ---- date math (calendar dates as YYYY-MM-DD, UTC-based to avoid drift) ------
-function localIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+// Both households are in Pacific time. "Today" must be computed there, not in
+// the server's timezone: Vercel runs in UTC, so a naive new Date() reads a day
+// ahead every evening on the West Coast.
+const APP_TZ = "America/Los_Angeles";
 
-// The Sunday that starts the current week.
+// The Sunday that starts the current week (in the app's timezone).
 export function weekStartOfToday(): string {
-  const now = new Date();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - now.getDay()); // 0=Sun..6=Sat, back to Sunday
-  return localIso(sunday);
+  return weekStartOf(todayIso());
 }
 
 export function addDaysIso(iso: string, n: number): string {
@@ -47,8 +42,9 @@ export function isWeekStart(iso: string): boolean {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 0;
 }
 
+// en-CA formats as YYYY-MM-DD; the timeZone makes it the Pacific calendar date.
 export function todayIso(): string {
-  return localIso(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TZ }).format(new Date());
 }
 
 // The Sunday (week start) that contains a given date.
