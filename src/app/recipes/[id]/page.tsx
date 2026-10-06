@@ -16,6 +16,7 @@ import { recipeCost, money } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { ScaledIngredients } from "@/components/ScaledIngredients";
 import { currentHousehold } from "@/lib/session";
+import { tzFor } from "@/lib/week";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -94,7 +95,7 @@ export default async function RecipeDetailPage({
             <Link href={`/recipes/${r.id}/edit`} className="rounded-lg border border-[var(--rule)] bg-[var(--card)] px-3 py-2 text-sm font-medium hover:border-[var(--ink2)]">
               Edit
             </Link>
-            <QuickAddButton recipeId={r.id} recipeTitle={r.title} variant="full" />
+            <QuickAddButton recipeId={r.id} recipeTitle={r.title} tz={tzFor(household)} variant="full" />
           </div>
         </div>
         <div className="mt-3 flex flex-col gap-2">

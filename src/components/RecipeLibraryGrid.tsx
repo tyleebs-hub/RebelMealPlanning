@@ -15,7 +15,7 @@ import { EMPTY_FILTERS, matchesFilters, type RecipeFilters } from "@/lib/recipe-
 // image cards at once.
 const PAGE_SIZE = 60;
 
-export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
+export function RecipeLibraryGrid({ recipes, tz }: { recipes: Recipe[]; tz: string }) {
   const [filters, setFilters] = useState<RecipeFilters>(EMPTY_FILTERS);
   const [limit, setLimit] = useState(PAGE_SIZE);
 
@@ -44,7 +44,7 @@ export function RecipeLibraryGrid({ recipes }: { recipes: Recipe[] }) {
           {visible.map((r) => (
             <li key={r.id} className="relative">
               <div className="absolute right-2 top-2 z-10">
-                <QuickAddButton recipeId={r.id} recipeTitle={r.title} />
+                <QuickAddButton recipeId={r.id} recipeTitle={r.title} tz={tz} />
               </div>
               <Link
                 href={`/recipes/${r.id}`}

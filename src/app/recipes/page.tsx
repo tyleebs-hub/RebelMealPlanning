@@ -4,6 +4,7 @@ import type { Recipe } from "@/lib/types";
 import { RecipeLibraryGrid } from "@/components/RecipeLibraryGrid";
 import { AppHeader } from "@/components/AppHeader";
 import { currentHousehold } from "@/lib/session";
+import { tzFor } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,12 @@ function SetupNotice() {
 
 export default async function RecipesPage() {
   const supabase = getSupabase();
+  const household = (await currentHousehold()) ?? "leber";
 
   let recipes: Recipe[] = [];
   let loadError: string | null = null;
 
   if (supabase) {
-    const household = (await currentHousehold()) ?? "leber";
     // Page past PostgREST's 1000-row cap so the whole library shows.
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
@@ -84,7 +85,7 @@ export default async function RecipesPage() {
       )}
 
       {isSupabaseConfigured && !loadError && recipes.length > 0 && (
-        <RecipeLibraryGrid recipes={recipes} />
+        <RecipeLibraryGrid recipes={recipes} tz={tzFor(household)} />
       )}
       </main>
     </>

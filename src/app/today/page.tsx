@@ -10,6 +10,7 @@ import {
   dayNameOf,
   weekStartOf,
   todayIso,
+  tzFor,
 } from "@/lib/week";
 import type { Ingredient, Step } from "@/lib/types";
 import { publicImageUrl } from "@/lib/storage";
@@ -30,8 +31,9 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   if (!session) redirect("/login");
 
   const { d } = await searchParams;
-  const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : todayIso();
-  const isToday = date === todayIso();
+  const today = todayIso(tzFor(session.household));
+  const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today;
+  const isToday = date === today;
   const weekStart = weekStartOf(date);
   const dayName = dayNameOf(date);
 

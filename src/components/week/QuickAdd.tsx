@@ -9,14 +9,16 @@ const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--i
 export function QuickAddButton({
   recipeId,
   recipeTitle,
+  tz,
   variant = "tile",
 }: {
   recipeId: string;
   recipeTitle: string;
+  tz: string; // household timezone, so "this week" matches the rest of the app
   variant?: "tile" | "full";
 }) {
   const [open, setOpen] = useState(false);
-  const thisWeek = weekStartOfToday();
+  const thisWeek = weekStartOfToday(tz);
 
   const openSheet = (e: React.MouseEvent) => {
     e.preventDefault();

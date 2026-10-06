@@ -19,14 +19,19 @@ const DAY_LABEL: Record<Day, string> = {
 export const dayLabel = (d: Day) => DAY_LABEL[d];
 
 // ---- date math (calendar dates as YYYY-MM-DD, UTC-based to avoid drift) ------
-// Both households are in Pacific time. "Today" must be computed there, not in
-// the server's timezone: Vercel runs in UTC, so a naive new Date() reads a day
-// ahead every evening on the West Coast.
-const APP_TZ = "America/Los_Angeles";
+// "Today" must be computed in the household's own timezone, not the server's:
+// Vercel runs in UTC, so a naive new Date() reads a day ahead every evening out
+// west. The Lebers are Pacific; Mom's household is in Utah (Mountain).
+const HOUSEHOLD_TZ: Record<string, string> = {
+  leber: "America/Los_Angeles",
+  mom: "America/Denver",
+};
+export const tzFor = (household: string): string =>
+  HOUSEHOLD_TZ[household] ?? "America/Los_Angeles";
 
-// The Sunday that starts the current week (in the app's timezone).
-export function weekStartOfToday(): string {
-  return weekStartOf(todayIso());
+// The Sunday that starts the current week in the given timezone.
+export function weekStartOfToday(tz: string): string {
+  return weekStartOf(todayIso(tz));
 }
 
 export function addDaysIso(iso: string, n: number): string {
@@ -42,9 +47,9 @@ export function isWeekStart(iso: string): boolean {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 0;
 }
 
-// en-CA formats as YYYY-MM-DD; the timeZone makes it the Pacific calendar date.
-export function todayIso(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TZ }).format(new Date());
+// en-CA formats as YYYY-MM-DD; the timeZone makes it that zone's calendar date.
+export function todayIso(tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
 }
 
 // The Sunday (week start) that contains a given date.
