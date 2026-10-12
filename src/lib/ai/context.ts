@@ -103,12 +103,27 @@ export async function gatherPlanningContext(
   const costByRecipe = new Map<string, number | null>();
   const proteinByRecipe = new Map<string, Protein>();
   if (ids.length > 0) {
-    const { data: ings } = await sb
-      .from("ingredients")
-      .select("recipe_id,qty,unit,item")
-      .in("recipe_id", ids);
-    const byRecipe = new Map<string, { qty: number | null; unit: string | null; item: string }[]>();
-    for (const r of (ings ?? []) as { recipe_id: string; qty: number | null; unit: string | null; item: string }[]) {
+    // Batch the ids (a URL with ~900 uuids is rejected as a Bad Request) and page
+    // within each batch (PostgREST caps a response at 1000 rows). Errors throw:
+    // silently planning with no ingredients hides cost and protein entirely.
+    type IngRow = { recipe_id: string; qty: number | null; unit: string | null; item: string };
+    const ings: IngRow[] = [];
+    for (let i = 0; i < ids.length; i += 150) {
+      const batch = ids.slice(i, i + 150);
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await sb
+          .from("ingredients")
+          .select("recipe_id,qty,unit,item")
+          .in("recipe_id", batch)
+          .order("id")
+          .range(from, from + 999);
+        if (error) throw new Error(`Loading ingredients for planning failed: ${error.message}`);
+        ings.push(...((data ?? []) as IngRow[]));
+        if ((data ?? []).length < 1000) break;
+      }
+    }
+    const byRecipe = new Map<string, Omit<IngRow, "recipe_id">[]>();
+    for (const r of ings) {
       (byRecipe.get(r.recipe_id) ?? byRecipe.set(r.recipe_id, []).get(r.recipe_id)!).push(r);
     }
     for (const r of plannable) {
