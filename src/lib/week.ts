@@ -66,8 +66,8 @@ export function dayNameOf(iso: string): Day {
   return DAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 
-export function dateForDay(mondayIso: string, day: Day): string {
-  return addDaysIso(mondayIso, DAYS.indexOf(day));
+export function dateForDay(weekStartIso: string, day: Day): string {
+  return addDaysIso(weekStartIso, DAYS.indexOf(day));
 }
 
 function fmtShort(iso: string): string {
@@ -79,12 +79,12 @@ function fmtShort(iso: string): string {
   });
 }
 
-export function formatWeekRange(mondayIso: string): string {
-  return `${fmtShort(mondayIso)} – ${fmtShort(addDaysIso(mondayIso, 6))}`;
+export function formatWeekRange(weekStartIso: string): string {
+  return `${fmtShort(weekStartIso)} – ${fmtShort(addDaysIso(weekStartIso, 6))}`;
 }
 
-export function dayDateLabel(mondayIso: string, day: Day): string {
-  return fmtShort(dateForDay(mondayIso, day));
+export function dayDateLabel(weekStartIso: string, day: Day): string {
+  return fmtShort(dateForDay(weekStartIso, day));
 }
 
 export function dateLabelIso(iso: string): string {

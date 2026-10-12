@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "vitest run && next build",
     "start": "next start",
     "lint": "eslint",
     "import:paprika": "node --env-file=.env.local --import tsx scripts/import-paprika.ts",
     "setup:storage": "node --env-file=.env.local --import tsx scripts/setup-storage.ts",
-    "backfill:photos": "node --env-file=.env.local --import tsx scripts/backfill-paprika-photos.ts"
+    "backfill:photos": "node --env-file=.env.local --import tsx scripts/backfill-paprika-photos.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
@@ -30,6 +31,7 @@
     "fflate": "^0.8.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

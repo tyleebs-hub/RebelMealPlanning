@@ -5,7 +5,7 @@
 // brown vs powdered sugar, onion colors stay distinct).
 
 const STRIP = new Set(
-  ("diced chopped minced sliced slivered grated shredded crushed mashed melted softened cubed halved quartered peeled cored seeded deseeded pitted rinsed drained cooked uncooked beaten whisked sifted packed loosely firmly tightly chilled warmed thawed boneless skinless trimmed cleaned finely coarsely thinly roughly freshly fresh large small medium jumbo ripe overripe room temperature divided optional garnish plus more needed taste to about approximately around well lightly very quality preferably homemade prepared cut into pieces piece each cold warm hot cool roasted toasted cooled level leveled spooned degrees juiced squeezed crumbled shaved zested grilled steamed drizzled").split(" "),
+  ("diced chopped minced sliced slivered grated shredded crushed mashed melted softened cubed halved quartered peeled cored seeded deseeded pitted rinsed drained cooked uncooked beaten whisked sifted packed loosely firmly tightly chilled warmed thawed boneless skinless trimmed cleaned finely coarsely thinly roughly freshly fresh large small medium jumbo ripe overripe room temperature divided optional garnish plus more needed taste to about approximately around well lightly very quality preferably homemade prepared cut into pieces piece each cold warm hot cool roasted toasted cooled level leveled spooned degrees juiced squeezed crumbled shaved zested grilled steamed drizzled unbleached").split(" "),
 );
 
 const PHRASE: [RegExp, string][] = [
@@ -30,12 +30,14 @@ const PHRASE: [RegExp, string][] = [
 ];
 const SYN: Record<string, string> = { coriander: "cilantro", capsicum: "bell pepper", aubergine: "eggplant", courgette: "zucchini", rocket: "arugula", prawns: "shrimp", prawn: "shrimp" };
 const KEEP_PLURAL = new Set("molasses hummus asparagus couscous swiss brussels greens oats chives".split(" "));
+// Only these "-ves" plurals become "-f"; others just drop the s (cloves, olives).
+const VES_TO_F = new Set("leaves halves loaves knives shelves".split(" "));
 
 function singular(w: string): string {
   if (KEEP_PLURAL.has(w) || w.endsWith("ss")) return w;
   if (w.endsWith("ies") && w.length > 4) return w.slice(0, -3) + "y";
   if (w.endsWith("oes") && w.length > 4) return w.slice(0, -2);
-  if (w.endsWith("ves") && w.length > 4) return w.slice(0, -3) + "f";
+  if (VES_TO_F.has(w)) return w.slice(0, -3) + "f";
   if (w.endsWith("s") && !w.endsWith("us") && w.length > 3) return w.slice(0, -1);
   return w;
 }
@@ -47,14 +49,21 @@ export function canonicalItem(text: string): string {
   s = s.replace(/\([^)]*\)/g, " ");
   for (const [re, to] of PHRASE) s = s.replace(re, to);
   s = s.replace(/^\s*optional\s*:?\s*/i, " ");
-  s = s.split(/,| or | for | \/ /)[0];
-  s = s.replace(/[*"'`]/g, " ").replace(/[.;:]/g, " ");
-  s = s.replace(/\d+(\.\d+)?/g, " ");
+  // The item is the first clause that survives stripping ("unbleached, all-purpose
+  // flour, more for dusting" -> "all-purpose flour").
+  for (const seg of s.split(/,| or | for | \/ /)) {
+    const out = clauseTokens(seg);
+    if (out) return out;
+  }
+  return String(text).toLowerCase().trim();
+}
+
+function clauseTokens(clause: string): string {
+  const s = clause.replace(/[*"'`]/g, " ").replace(/[.;:]/g, " ").replace(/\d+(\.\d+)?/g, " ");
   let toks = s.split(/\s+/).map((w) => w.trim()).filter(Boolean);
   toks = toks.map((w) => SYN[w] || w);
   toks = toks.filter((w) => !STRIP.has(w));
   toks = toks.map(singular);
   toks = toks.filter((w) => w && !STRIP.has(w) && w.length > 1);
-  const out = toks.join(" ").trim();
-  return out || String(text).toLowerCase().trim();
+  return toks.join(" ").trim();
 }
