@@ -332,11 +332,11 @@ are entered inline on the grocery list and read server-side with the secret key.
 ## AI suggestions
 
 Two optional AI features, gated on `ANTHROPIC_API_KEY` (server-only). When unset, the
-controls are hidden and the app behaves exactly as before. Model: Claude Sonnet 4.6.
+controls are hidden and the app behaves exactly as before. Model: Claude Sonnet 5.5 (`claude-sonnet-5-5`), effort medium for planning and low for chat.
 
 **The model proposes; the backend verifies.** The model never computes portions or decides
-coverage. It returns recipe ids, multipliers, and day placements via a forced tool call
-(strict schema); server code validates every id against the library and rejects anything
+coverage. It returns recipe ids, multipliers, and day placements via structured outputs
+(strict JSON schema; Sonnet 5.5 rejects forced tool calls); server code validates every id against the library and rejects anything
 malformed, then the existing portion ledger (`computeCoverage`/`computeLedger`) decides
 coverage. Nothing an AI produced becomes a real cook event without a tap.
 

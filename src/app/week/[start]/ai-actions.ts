@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { weekIdForStart } from "@/lib/week-data";
 import { requireHousehold } from "@/lib/session";
-import { isAiConfigured, forcedTool, chatComplete, type ChatMessage } from "@/lib/ai/client";
+import { isAiConfigured, structuredOutput, chatComplete, type ChatMessage } from "@/lib/ai/client";
 import { gatherPlanningContext } from "@/lib/ai/context";
 import {
   buildSystem,
@@ -13,8 +13,8 @@ import {
   formatWeekOpenings,
   formatGenerateUser,
   formatSwapUser,
-  PROPOSE_WEEK_TOOL,
-  PROPOSE_SWAPS_TOOL,
+  PROPOSE_WEEK_SCHEMA,
+  PROPOSE_SWAPS_SCHEMA,
   SUGGEST_MEALS_TOOL,
 } from "@/lib/ai/prompt";
 import {
@@ -52,11 +52,11 @@ export async function generateWeek(
       ...ctx.cookEvents.map((c) => c.recipe_id),
       ...avoid,
     ]);
-    const plan = await forcedTool({
+    const plan = await structuredOutput({
       system: buildSystem(ctx),
       cachedContext: formatLibrary(ctx, exclude),
       userContent: formatGenerateUser(ctx, avoid.length > 0),
-      tool: PROPOSE_WEEK_TOOL,
+      schema: PROPOSE_WEEK_SCHEMA,
       validate: (input) => validateWeekPlan(input, ctx),
     });
     // Safety net: never return an excluded recipe.
@@ -220,11 +220,11 @@ export async function swapSlot(
     // as candidates — hiding them prevents the model from re-proposing the current
     // dish and getting confused.
     const excludeIds = new Set(ctx.cookEvents.map((c) => c.recipe_id));
-    const swaps = await forcedTool({
+    const swaps = await structuredOutput({
       system: buildSystem(ctx),
       cachedContext: formatLibrary(ctx, excludeIds),
       userContent: formatSwapUser(ctx, day, meal, currentTitle, lunchesFed, reason),
-      tool: PROPOSE_SWAPS_TOOL,
+      schema: PROPOSE_SWAPS_SCHEMA,
       validate: (input) => validateSwaps(input, ctx),
     });
     // Safety net: never return an excluded recipe.

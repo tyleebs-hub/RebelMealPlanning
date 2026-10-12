@@ -11,7 +11,7 @@ const householdDesc = (ctx: PlanningContext) => HOUSEHOLD_DESC[ctx.household] ??
 
 export function buildSystem(ctx: PlanningContext): string {
   const { dinnerServings, lunchServings, targetDinners, targetLunches } = ctx.cfg;
-  return `You are the meal-planning assistant for ${householdDesc(ctx)}. You propose weekly dinner and lunch plans. You do not do arithmetic on portions or decide whether a week is "covered" — you propose recipes, day placements, and batch multipliers, and the app's ledger verifies coverage. Return your answer ONLY by calling the provided tool.
+  return `You are the meal-planning assistant for ${householdDesc(ctx)}. You propose weekly dinner and lunch plans. You do not do arithmetic on portions or decide whether a week is "covered" — you propose recipes, day placements, and batch multipliers, and the app's ledger verifies coverage. Return your answer as JSON in the required format.
 
 HOW THE LEDGER WORKS (for your intuition, not for you to compute exactly):
 - A "cook" of a recipe at multiplier m produces base_servings * m servings.
@@ -165,35 +165,57 @@ export function formatWeekOpenings(ctx: PlanningContext): string {
 ${lockedCooksText(ctx)}`;
 }
 
-// ---- tool schemas -----------------------------------------------------------
+// ---- schemas ----------------------------------------------------------------
 
-export const PROPOSE_WEEK_TOOL: ToolDef = {
-  name: "propose_week_plan",
-  description: "Return the proposed week plan as structured cooks plus a short summary.",
-  input_schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["summary", "cooks"],
-    properties: {
-      summary: { type: "string", description: "1-2 sentence summary for the top of the week view." },
-      cooks: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["recipe_id", "day", "kind", "multiplier", "rationale"],
-          properties: {
-            recipe_id: { type: "string", description: "Exact recipe id from the library." },
-            day: { type: "string", enum: [...DAYS] },
-            kind: { type: "string", enum: ["dinner", "prep"] },
-            multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
-            rationale: { type: "string", description: "One short line." },
-          },
+// Structured-output schemas: the API guarantees the reply matches these.
+export const PROPOSE_WEEK_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "cooks"],
+  properties: {
+    summary: { type: "string", description: "1-2 sentence summary for the top of the week view." },
+    cooks: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["recipe_id", "day", "kind", "multiplier", "rationale"],
+        properties: {
+          recipe_id: { type: "string", description: "Exact recipe id from the library." },
+          day: { type: "string", enum: [...DAYS] },
+          kind: { type: "string", enum: ["dinner", "prep"] },
+          multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
+          rationale: { type: "string", description: "One short line." },
         },
       },
     },
   },
 };
+
+export const PROPOSE_SWAPS_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["options"],
+  properties: {
+    options: {
+      type: "array",
+      description: "Exactly 3 options.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["recipe_id", "multiplier", "rationale"],
+        properties: {
+          recipe_id: { type: "string" },
+          multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
+          rationale: { type: "string" },
+        },
+      },
+    },
+    coverage_note: { type: "string", description: "Only if the lunch coverage can't be held." },
+  },
+};
+
+// The brainstorm chat's optional tool (the model chooses whether to call it).
 
 export const SUGGEST_MEALS_TOOL: ToolDef = {
   name: "suggest_meals",
@@ -219,33 +241,6 @@ export const SUGGEST_MEALS_TOOL: ToolDef = {
           },
         },
       },
-    },
-  },
-};
-
-export const PROPOSE_SWAPS_TOOL: ToolDef = {
-  name: "propose_swaps",
-  description: "Return exactly 3 alternative recipes for one slot.",
-  input_schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["options"],
-    properties: {
-      options: {
-        type: "array",
-        description: "Exactly 3 options.",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["recipe_id", "multiplier", "rationale"],
-          properties: {
-            recipe_id: { type: "string" },
-            multiplier: { type: "integer", description: "Batch multiplier, 1-8." },
-            rationale: { type: "string" },
-          },
-        },
-      },
-      coverage_note: { type: "string", description: "Only if the lunch coverage can't be held." },
     },
   },
 };

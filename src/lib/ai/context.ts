@@ -107,9 +107,8 @@ export async function gatherPlanningContext(
     // within each batch (PostgREST caps a response at 1000 rows). Errors throw:
     // silently planning with no ingredients hides cost and protein entirely.
     type IngRow = { recipe_id: string; qty: number | null; unit: string | null; item: string };
-    const ings: IngRow[] = [];
-    for (let i = 0; i < ids.length; i += 150) {
-      const batch = ids.slice(i, i + 150);
+    const loadBatch = async (batch: string[]): Promise<IngRow[]> => {
+      const rows: IngRow[] = [];
       for (let from = 0; ; from += 1000) {
         const { data, error } = await sb
           .from("ingredients")
@@ -118,10 +117,14 @@ export async function gatherPlanningContext(
           .order("id")
           .range(from, from + 999);
         if (error) throw new Error(`Loading ingredients for planning failed: ${error.message}`);
-        ings.push(...((data ?? []) as IngRow[]));
+        rows.push(...((data ?? []) as IngRow[]));
         if ((data ?? []).length < 1000) break;
       }
-    }
+      return rows;
+    };
+    const batches: string[][] = [];
+    for (let i = 0; i < ids.length; i += 150) batches.push(ids.slice(i, i + 150));
+    const ings = (await Promise.all(batches.map(loadBatch))).flat(); // batches run in parallel
     const byRecipe = new Map<string, Omit<IngRow, "recipe_id">[]>();
     for (const r of ings) {
       (byRecipe.get(r.recipe_id) ?? byRecipe.set(r.recipe_id, []).get(r.recipe_id)!).push(r);
