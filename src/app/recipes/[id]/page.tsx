@@ -15,8 +15,10 @@ import { DeleteRecipeButton } from "@/components/DeleteRecipeButton";
 import { recipeCost, money } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { ScaledIngredients } from "@/components/ScaledIngredients";
-import { currentHousehold } from "@/lib/session";
-import { tzFor } from "@/lib/week";
+import { currentSession } from "@/lib/session";
+import { StarRating } from "@/components/StarRating";
+import { loadRatings } from "@/lib/ratings";
+import { dateLabelIso, tzFor } from "@/lib/week";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink2)]";
 
@@ -61,9 +63,12 @@ export default async function RecipeDetailPage({
   if (!recipe) notFound();
 
   const r = recipe as Recipe;
-  const household = (await currentHousehold()) ?? "leber";
+  const session = await currentSession();
+  const household = session?.household ?? "leber";
   // Recipes belong to one household; don't expose another's by guessed URL.
   if (r.household_id !== household) notFound();
+  const ratingEntries = (await loadRatings([r.id])).get(r.id) ?? [];
+  const myStars = ratingEntries.find((e) => e.who === session?.who)?.stars ?? null;
   const ings = (ingredients ?? []) as Ingredient[];
   const stps = (steps ?? []) as Step[];
   const rc = r.flat_cost != null ? { cost: r.flat_cost, unpriced: 0, total: 0 } : recipeCost(ings, await loadPrices(household));
@@ -101,6 +106,15 @@ export default async function RecipeDetailPage({
         <div className="mt-3 flex flex-col gap-2">
           <MealTypeChips types={r.meal_types} />
           <TimeLine recipe={r} />
+          {r.last_made_at && (
+            <p className="text-sm text-[var(--ink2)]">Last made {dateLabelIso(r.last_made_at)}</p>
+          )}
+          <StarRating
+            recipeId={r.id}
+            mine={myStars}
+            others={ratingEntries.filter((e) => e.who !== session?.who)}
+            prompt="Rate it"
+          />
           <div className="flex flex-wrap items-center gap-1.5">
             {r.is_component && (
               <span className="inline-flex items-center rounded-full border border-violet-400/60 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">

@@ -19,6 +19,9 @@ import { ScaledIngredients } from "@/components/ScaledIngredients";
 import { hueForRecipe } from "@/lib/hues";
 import { TimeLine } from "@/components/recipe-meta";
 import { AppHeader } from "@/components/AppHeader";
+import { StarRating } from "@/components/StarRating";
+import { loadRatings, type RatingEntry } from "@/lib/ratings";
+import { stampLastMade } from "@/lib/last-made";
 import type { Recipe } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,10 +40,21 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const weekStart = weekStartOf(date);
   const dayName = dayNameOf(date);
 
-  const { cookEvents, slots } = await loadWeek(weekStart, session.household);
+  const [{ cookEvents, slots }] = await Promise.all([
+    loadWeek(weekStart, session.household),
+    stampLastMade(session.household, today), // past cooks count as made
+  ]);
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));
   const dinner = slots.find((s) => s.day === dayName && s.meal === "dinner");
   const lunch = slots.find((s) => s.day === dayName && s.meal === "lunch");
+
+  // Ratings for the dishes on this day (only once the day has come).
+  const canRate = date <= today;
+  const shownRecipeIds = [dinner, lunch]
+    .map((s) => (s?.cook_event_id ? eventById.get(s.cook_event_id)?.recipe_id : undefined))
+    .filter((x): x is string => Boolean(x));
+  const ratings = canRate ? await loadRatings([...new Set(shownRecipeIds)]) : new Map();
+  const rate = canRate ? { who: session.who, ratings } : null;
 
   // Recipes to pull up in full: the dinner cook, plus a lunch that's cooked fresh.
   const cookIds = [dinner, lunch]
@@ -86,6 +100,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           recipeBy={recipeBy}
           ingredientsBy={ingredientsBy}
           stepsBy={stepsBy}
+          rate={rate}
         />
         <MealBlock
           label="Lunch"
@@ -94,6 +109,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           recipeBy={recipeBy}
           ingredientsBy={ingredientsBy}
           stepsBy={stepsBy}
+          rate={rate}
         />
 
         <div className="mt-8 text-center">
@@ -108,6 +124,18 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
 
 type SlotLike = { fill_type: "cook" | "leftover" | "out" | null; out_label: string | null; sauce: string | null } | undefined;
 type EventLike = { recipe_id: string; multiplier: number; day: string | null; recipe: { title: string; base_servings: number; image_path: string | null } } | undefined;
+type RateCtx = { who: string; ratings: Map<string, RatingEntry[]> } | null;
+
+function Rating({ rate, recipeId }: { rate: RateCtx; recipeId: string }) {
+  if (!rate) return null;
+  const entries = rate.ratings.get(recipeId) ?? [];
+  const mine = entries.find((e) => e.who === rate.who)?.stars ?? null;
+  return (
+    <div className="mt-3 border-t border-[var(--rule2)] pt-3">
+      <StarRating recipeId={recipeId} mine={mine} others={entries.filter((e) => e.who !== rate.who)} />
+    </div>
+  );
+}
 
 function MealBlock({
   label,
@@ -116,6 +144,7 @@ function MealBlock({
   recipeBy,
   ingredientsBy,
   stepsBy,
+  rate,
 }: {
   label: string;
   slot: SlotLike;
@@ -123,6 +152,7 @@ function MealBlock({
   recipeBy: Record<string, Recipe>;
   ingredientsBy: Record<string, Ingredient[]>;
   stepsBy: Record<string, Step[]>;
+  rate: RateCtx;
 }) {
   if (!slot?.fill_type) {
     return (
@@ -159,6 +189,7 @@ function MealBlock({
             view recipe
           </Link>
         )}
+        {event && <Rating rate={rate} recipeId={event.recipe_id} />}
       </section>
     );
   }
@@ -185,6 +216,7 @@ function MealBlock({
             <span>· makes {produced} servings</span>
           </div>
         )}
+        {event && <Rating rate={rate} recipeId={event.recipe_id} />}
 
         {ings.length > 0 && (
           <div className="mt-5">

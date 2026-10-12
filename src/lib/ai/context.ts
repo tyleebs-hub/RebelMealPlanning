@@ -1,7 +1,8 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { loadWeek } from "@/lib/week-data";
-import { computeCoverage, type CookEvent, type Coverage, type Slot } from "@/lib/week";
+import { computeCoverage, todayIso, tzFor, type CookEvent, type Coverage, type Slot } from "@/lib/week";
+import { stampLastMade } from "@/lib/last-made";
 import { recipeCost } from "@/lib/cost";
 import { loadPrices } from "@/lib/cost-data";
 import { loadHouseholdConfig } from "@/lib/household";
@@ -53,10 +54,13 @@ export type PlanRecipe = {
   base_servings: number;
   costPerServing: number | null;
   protein: Protein;
+  rating: number | null; // household average stars, null if unrated
+  lastMadeAt: string | null; // YYYY-MM-DD of the most recent past cook
 };
 
 export type PlanningContext = {
   household: string;
+  today: string; // household-local date, for "weeks since last made"
   weekId: string;
   library: PlanRecipe[];
   libraryById: Map<string, PlanRecipe>;
@@ -78,20 +82,26 @@ export async function gatherPlanningContext(
   householdId: string,
 ): Promise<PlanningContext> {
   const sb = getSupabaseAdmin();
-  const { weekId, cookEvents, slots } = await loadWeek(start, householdId);
-  const cfg = await loadHouseholdConfig(householdId);
+  const today = todayIso(tzFor(householdId));
+  // Bring last_made_at up to date before reading recipes.
+  const [{ weekId, cookEvents, slots }, cfg] = await Promise.all([
+    loadWeek(start, householdId),
+    loadHouseholdConfig(householdId),
+    stampLastMade(householdId, today),
+  ]);
 
-  const rows: Omit<PlanRecipe, "costPerServing">[] = [];
+  type RecipeRow = Omit<PlanRecipe, "costPerServing" | "protein" | "rating" | "lastMadeAt"> & { last_made_at: string | null };
+  const rows: RecipeRow[] = [];
   for (let from = 0; ; from += 1000) {
     const { data: recipeRows } = await sb
       .from("recipes")
       .select(
-        "id,title,meal_types,active_min,total_min,scales_cheaply,reheats_well,kids_like,is_component,base_servings",
+        "id,title,meal_types,active_min,total_min,scales_cheaply,reheats_well,kids_like,is_component,base_servings,last_made_at",
       )
       .eq("household_id", householdId)
       .order("title")
       .range(from, from + 999);
-    const batch = (recipeRows ?? []) as Omit<PlanRecipe, "costPerServing">[];
+    const batch = (recipeRows ?? []) as RecipeRow[];
     rows.push(...batch);
     if (batch.length < 1000) break;
   }
@@ -137,11 +147,33 @@ export async function gatherPlanningContext(
     }
   }
 
-  const library: PlanRecipe[] = plannable.map((r) => ({
-    ...r,
-    costPerServing: costByRecipe.get(r.id) ?? null,
-    protein: proteinByRecipe.get(r.id) ?? proteinOf(r.title),
-  }));
+  // Household star ratings, averaged per recipe (one query via the recipe join;
+  // ratings are few, so no id list is needed).
+  const starSum = new Map<string, { sum: number; n: number }>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb
+      .from("ratings")
+      .select("recipe_id,stars,recipes!inner(household_id)")
+      .eq("recipes.household_id", householdId)
+      .range(from, from + 999);
+    if (error) throw new Error(`Loading ratings for planning failed: ${error.message}`);
+    for (const r of (data ?? []) as { recipe_id: string; stars: number }[]) {
+      const s = starSum.get(r.recipe_id) ?? { sum: 0, n: 0 };
+      starSum.set(r.recipe_id, { sum: s.sum + r.stars, n: s.n + 1 });
+    }
+    if ((data ?? []).length < 1000) break;
+  }
+
+  const library: PlanRecipe[] = plannable.map(({ last_made_at, ...r }) => {
+    const s = starSum.get(r.id);
+    return {
+      ...r,
+      costPerServing: costByRecipe.get(r.id) ?? null,
+      protein: proteinByRecipe.get(r.id) ?? proteinOf(r.title),
+      rating: s ? s.sum / s.n : null,
+      lastMadeAt: last_made_at,
+    };
+  });
   const libraryById = new Map(library.map((r) => [r.id, r]));
 
   // Last 3 weeks of this household's cook history. Titles feed the prompt; the
@@ -180,6 +212,7 @@ export async function gatherPlanningContext(
     coverage: computeCoverage(slots, cfg),
     cfg,
     household: householdId,
+    today,
   };
 }
 
@@ -199,8 +232,21 @@ export function costTier(costPerServing: number | null): string {
 const DINNER_PER_PROTEIN = 40;
 const EXTRA_LUNCH_CAP = 90;
 
+// Whole weeks between a past date and today (null if never made).
+export function weeksSince(today: string, iso: string | null): number | null {
+  if (!iso) return null;
+  return Math.floor((Date.parse(today) - Date.parse(iso)) / (7 * 86400000));
+}
+
+// A recipe the household rated 2 stars or lower is never proposed again.
+export const isLowRated = (r: PlanRecipe) => r.rating != null && r.rating <= 2;
+
 function candidateScore(ctx: PlanningContext, r: PlanRecipe): number {
+  const favorite = r.rating != null && r.rating >= 4;
+  const since = weeksSince(ctx.today, r.lastMadeAt);
   return (
+    (favorite ? 7 : 0) + // proven hits outrank every unrated recipe (the rest max out at 6)
+    (favorite && (since == null || since >= 6) ? 1 : 0) + // a favorite due for a comeback
     (r.costPerServing != null ? 2 : 0) + // known cost beats a guess
     (r.reheats_well ? 2 : 0) + // can stretch into lunches
     (ctx.household === "leber" && r.kids_like ? 1 : 0) +
@@ -209,7 +255,7 @@ function candidateScore(ctx: PlanningContext, r: PlanRecipe): number {
 }
 
 export function selectCandidates(ctx: PlanningContext, exclude?: Set<string>): PlanRecipe[] {
-  const pool = ctx.library.filter((r) => !exclude?.has(r.id));
+  const pool = ctx.library.filter((r) => !exclude?.has(r.id) && !isLowRated(r));
   const byScore = (a: PlanRecipe, b: PlanRecipe) =>
     candidateScore(ctx, b) - candidateScore(ctx, a) || a.title.localeCompare(b.title);
 

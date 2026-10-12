@@ -1,5 +1,5 @@
 import { DAYS, dayLabel, type Day } from "@/lib/week";
-import { costTier, proteinOf, selectCandidates, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
+import { costTier, proteinOf, selectCandidates, weeksSince, type PlanningContext, type PlanRecipe } from "@/lib/ai/context";
 import type { ToolDef } from "@/lib/ai/client";
 
 // Who each household cooks for, so the model's suggestions fit the table.
@@ -25,6 +25,7 @@ STANDING RULES:
 - Favor overlapping ingredients across cooks and stay budget-conscious (prefer $ and $$ over $$$ when it doesn't hurt variety).
 - Do NOT propose anything cooked in the last 2 weeks. Those recipes have already been removed from the candidate library; recent history is listed only for context.
 - VARY THE PROTEINS across the week. Each recipe is tagged with its protein (chicken, beef, pork, turkey, fish, vegetarian, other). Rotate proteins so the week is a mix — some vegetarian, some chicken, some beef, a little fish. With 5 dinners, do not propose more than 2 that share the same protein (3 only if truly unavoidable), and count the proteins already locked in this week toward that limit. If chicken is already planned twice, do not add more chicken. Spread the proteins even when the week starts blank.
+- FAMILY RATINGS: each recipe shows the household's average star rating (★1-5) and when it was last made. Lean on proven favorites (★4-5), especially ones not made in 6+ weeks, and mix in a couple of unrated recipes so the family keeps finding new hits. Recipes rated ★2 or lower have already been removed.
 - Favor widely-liked, crowd-pleasing dinners; respect recency and variety so it doesn't feel like the same week twice.${ctx.household === "leber" ? " Kid-friendly is a plus." : ""}
 
 FAMILY FOOD RULES:
@@ -35,7 +36,7 @@ FAMILY FOOD RULES:
 }
 
 // Compact one-line-per-recipe library — the cached prefix.
-function libraryLine(r: PlanRecipe): string {
+function libraryLine(r: PlanRecipe, today: string): string {
   const flags = [
     r.reheats_well ? "reheats" : "",
     r.kids_like ? "kids" : "",
@@ -43,14 +44,17 @@ function libraryLine(r: PlanRecipe): string {
     r.scales_cheaply ? "" : "no-cheap-scale",
   ].filter(Boolean).join(",");
   const time = `${r.active_min ?? "?"}a/${r.total_min ?? "?"}t min`;
-  return `${r.id} | ${r.title} | ${r.protein} | [${r.meal_types.join(",")}] | ${time} | serves ${r.base_servings} | ${flags || "-"} | ${costTier(r.costPerServing)}`;
+  const stars = r.rating != null ? `★${r.rating.toFixed(1)}` : "unrated";
+  const since = weeksSince(today, r.lastMadeAt);
+  const made = since == null ? "never made" : since === 0 ? "made this week" : `made ${since}w ago`;
+  return `${r.id} | ${r.title} | ${r.protein} | [${r.meal_types.join(",")}] | ${time} | serves ${r.base_servings} | ${flags || "-"} | ${costTier(r.costPerServing)} | ${stars} | ${made}`;
 }
 
 export function formatLibrary(ctx: PlanningContext, exclude?: Set<string>): string {
   // A balanced, capped candidate set (see selectCandidates) rather than the
   // entire library — plenty of variety without a multi-thousand-line prompt.
-  const lines = selectCandidates(ctx, exclude).map(libraryLine);
-  return `RECIPE LIBRARY (id | title | protein | meal types | active/total time | base servings | flags | cost tier per serving):\n${lines.join("\n")}`;
+  const lines = selectCandidates(ctx, exclude).map((r) => libraryLine(r, ctx.today));
+  return `RECIPE LIBRARY (id | title | protein | meal types | active/total time | base servings | flags | cost tier per serving | family rating | last made):\n${lines.join("\n")}`;
 }
 
 function filledDinnerDays(ctx: PlanningContext): Set<Day> {
