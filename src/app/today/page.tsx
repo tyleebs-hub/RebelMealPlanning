@@ -22,6 +22,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { StarRating } from "@/components/StarRating";
 import { loadRatings, type RatingEntry } from "@/lib/ratings";
 import { stampLastMade } from "@/lib/last-made";
+import { loadHouseholdConfig } from "@/lib/household";
 import type { Recipe } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,8 +41,9 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const weekStart = weekStartOf(date);
   const dayName = dayNameOf(date);
 
-  const [{ cookEvents, slots }] = await Promise.all([
+  const [{ cookEvents, slots }, { lunchServings }] = await Promise.all([
     loadWeek(weekStart, session.household),
+    loadHouseholdConfig(session.household),
     stampLastMade(session.household, today), // past cooks count as made
   ]);
   const eventById = new Map(cookEvents.map((c) => [c.id, c]));
@@ -101,6 +103,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           ingredientsBy={ingredientsBy}
           stepsBy={stepsBy}
           rate={rate}
+          lunchServings={lunchServings}
         />
         <MealBlock
           label="Lunch"
@@ -110,6 +113,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           ingredientsBy={ingredientsBy}
           stepsBy={stepsBy}
           rate={rate}
+          lunchServings={lunchServings}
         />
 
         <div className="mt-8 text-center">
@@ -145,6 +149,7 @@ function MealBlock({
   ingredientsBy,
   stepsBy,
   rate,
+  lunchServings,
 }: {
   label: string;
   slot: SlotLike;
@@ -153,6 +158,7 @@ function MealBlock({
   ingredientsBy: Record<string, Ingredient[]>;
   stepsBy: Record<string, Step[]>;
   rate: RateCtx;
+  lunchServings: number;
 }) {
   if (!slot?.fill_type) {
     return (
@@ -182,7 +188,7 @@ function MealBlock({
         <p className="mt-1 text-lg font-medium">{title}</p>
         <p className="mt-0.5 text-sm text-[var(--ink2)]">
           from {event?.day ? dayLabel(event.day as never) : "a prep batch"}
-          {slot.sauce ? ` · ${slot.sauce}` : ""} · reheat 2 portions
+          {slot.sauce ? ` · ${slot.sauce}` : ""} · reheat {lunchServings} portions
         </p>
         {event && (
           <Link href={`/recipes/${event.recipe_id}`} className="mt-2 inline-block text-sm text-[var(--ink2)] underline underline-offset-2 hover:text-[var(--ink)]">
